@@ -1,5 +1,4 @@
 export default async function handler(req, res) {
-    // Enable CORS
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -24,7 +23,62 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
-        const prompt = buildUltraATSPrompt(jobDescription, masterResumeText, parsedData);
+        const prompt = `You are an elite ATS optimization specialist. Goal: 97%+ ATS match while maintaining authenticity.
+
+MASTER RESUME:
+${masterResumeText}
+
+PARSED DATA:
+${JSON.stringify(parsedData, null, 2)}
+
+JOB DESCRIPTION:
+${jobDescription}
+
+OPTIMIZATION RULES:
+
+1. KEYWORD DENSITY: Extract ALL JD keywords. Each appears 2-4x naturally. Use exact JD phrases + acronyms.
+
+2. ALL EXPERIENCE: Include EVERY work experience. Reframe each with JD keywords. Add relevant context.
+
+3. SENIORITY (2-3 years):
+   ✅ Use: "Developed", "Built", "Implemented", "Supported", "Collaborated", "Executed"
+   ❌ Avoid: "Architected", "Led team of", "Managed", "Defined strategy"
+   
+4. BULLET OPTIMIZATION:
+   - Action verb (matching JD) + JD keywords + metrics + impact
+   - Example: "Developed Python pipelines processing 5M+ records, improving efficiency 30%"
+
+5. SKILLS: Group by JD categories. List ALL relevant skills. Repeat critical ones in experience.
+
+6. REFRAMING (NOT LYING):
+   ✅ "Worked with data" → "Performed data analysis on 10M+ records using Python/SQL"
+   ✅ "Made reports" → "Built Tableau dashboards delivering insights to stakeholders"
+   ❌ Don't invent roles, skills, projects, or metrics
+
+7. SUMMARY: Mirror JD title. Include top 5 requirements. Mention 2+ years experience. Pack keywords.
+
+8. FORMAT: Headers - SUMMARY, TECHNICAL SKILLS, PROFESSIONAL EXPERIENCE, PROJECTS, CERTIFICATIONS, EDUCATION
+
+9. QUANTIFY: Every bullet needs metrics (%, $, time, scale)
+
+10. ATS: 80%+ JD keywords in resume. Exact phrasing. Natural flow.
+
+OUTPUT (JSON only):
+{
+  "resume": {
+    "summary": "string",
+    "skills": {"Category": ["skill1", "skill2"]},
+    "experience": [{"company": "str", "position": "str", "period": "str", "location": "str", "achievements": ["str"]}],
+    "projects": [{"name": "str", "description": "str", "technologies": ["str"]}],
+    "certifications": [{"name": "str", "issuer": "str", "date": "str"}],
+    "education": [{"school": "str", "degree": "str", "field": "str", "year": "str", "gpa": "str"}]
+  },
+  "atsScore": 97,
+  "matchedKeywords": ["array"],
+  "optimizationStrategy": "string"
+}
+
+Generate now. Be aggressive with keywords while staying truthful.`;
 
         const response = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
@@ -46,212 +100,21 @@ export default async function handler(req, res) {
         if (!response.ok) {
             const errorText = await response.text();
             console.error('Claude API error:', errorText);
-            return res.status(response.status).json({
-                error: 'Claude API error'
-            });
+            return res.status(500).json({ error: 'AI service error' });
         }
 
         const data = await response.json();
-        const result = parseResponse(data.content[0].text);
+        const text = data.content[0].text;
+
+        const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        const result = JSON.parse(cleanText);
 
         return res.status(200).json(result);
     } catch (error) {
         console.error('API error:', error);
         return res.status(500).json({
-            error: 'Internal server error',
+            error: 'Server error',
             message: error.message
         });
-    }
-}
-
-function buildUltraATSPrompt(jobDescription, masterResumeText, parsedData) {
-    return `You are an elite ATS optimization specialist and resume writer. Your goal is to achieve a 97%+ ATS match rate while maintaining authenticity. You have the candidate's complete master resume and must create a version that will DOMINATE applicant tracking systems.
-
-==========================================
-MASTER RESUME (Complete Background):
-${masterResumeText}
-
-PARSED STRUCTURED DATA:
-${JSON.stringify(parsedData, null, 2)}
-
-==========================================
-TARGET JOB DESCRIPTION:
-${jobDescription}
-
-==========================================
-CRITICAL ATS OPTIMIZATION RULES:
-
-1. KEYWORD DENSITY (PRIORITY #1):
-   - Extract EVERY important keyword/phrase from job description
-   - Each critical keyword must appear 2-4 times naturally across resume
-   - Use exact phrases from JD, not synonyms
-   - Include both acronyms AND full terms (AWS and Amazon Web Services)
-   - Mirror JD language patterns and terminology exactly
-
-2. INCLUDE ALL EXPERIENCE:
-   - Use EVERY work experience from master resume
-   - Reframe each role to emphasize skills mentioned in JD
-   - Add relevant keywords to existing bullet points
-   - If experience doesn't match perfectly, reframe responsibilities to highlight transferable skills that align with JD requirements
-
-3. AGGRESSIVE BULLET POINT OPTIMIZATION:
-   - Start with action verbs that match JD language
-   - Inject JD keywords naturally into every bullet point
-   - Reframe technical accomplishments using JD terminology
-   - Add context that connects experience to JD requirements
-   - Example transformation:
-     * Basic: "Analyzed data using Python"
-     * Optimized: "Executed advanced data analysis using Python (Pandas, NumPy, scikit-learn) to process 5M+ records, delivering actionable insights that improved operational efficiency by 30%"
-
-4. EXPERIENCE LEVEL CALIBRATION:
-   Candidate has 2-3 years of professional experience.
-   
-   ✅ APPROPRIATE LANGUAGE:
-   - "Developed", "Built", "Implemented", "Executed", "Performed"
-   - "Supported", "Contributed to", "Collaborated with"
-   - "Analyzed", "Processed", "Automated", "Optimized"
-   - Individual contributor scope (not managing teams)
-   - Working WITH senior people, not LEADING them
-   
-   ❌ AVOID (Too Senior):
-   - "Architected enterprise-wide..."
-   - "Led team of X engineers..."
-   - "Defined organizational strategy..."
-   - "Managed stakeholders..."
-   - Scope too large for 2-3 years experience
-   
-   RULE: Every bullet must be believable for someone with 2-3 years experience.
-
-5. TECHNICAL SKILLS OPTIMIZATION:
-   - List EVERY skill from master resume that matches JD
-   - Group skills by category matching JD structure
-   - Repeat critical skills in Skills section AND experience bullets
-   - If JD mentions "Python" 5 times, ensure Python appears 5+ times
-   - Include skill variations (ML, Machine Learning, ML models, ML algorithms)
-
-6. INTELLIGENT REFRAMING (NOT LYING):
-   ✅ ALLOWED:
-   - "Worked with data" → "Developed data pipelines and performed analysis on 10M+ records"
-   - "Created reports" → "Built business intelligence dashboards using Tableau"
-   - "Used Python" → "Leveraged Python (Pandas, NumPy) for data processing and automation"
-   - "Team member" → "Collaborated with cross-functional engineering and product teams"
-   
-   ❌ NOT ALLOWED:
-   - Inventing roles, companies, or dates
-   - Claiming skills never used
-   - Fabricating projects or certifications
-   - Creating false metrics
-
-7. PROFESSIONAL SUMMARY OPTIMIZATION:
-   - Mirror job title from JD
-   - Include top 5 required qualifications from JD
-   - Mention years of experience: "Data Scientist with 2+ years expertise in..."
-   - Pack with keywords naturally
-
-8. ATS FORMATTING:
-   - Headers: SUMMARY, TECHNICAL SKILLS, PROFESSIONAL EXPERIENCE, PROJECTS, CERTIFICATIONS, EDUCATION
-   - No tables, columns, or graphics
-   - Simple bullet points (•)
-   - One column layout
-
-9. QUANTIFICATION STRATEGY:
-   - Every bullet: Action verb + Keyword + Metric + Impact
-   - Example: "Developed Python-based ETL pipelines processing 120M+ records, improving data quality by 40% and reducing processing time by 8 hours weekly"
-
-10. KEYWORD PLACEMENT:
-    - Most critical JD keywords in Summary
-    - Repeat in Technical Skills
-    - Weave into experience bullets
-    - Include in project descriptions
-
-==========================================
-ATS SCORING TARGET: 97%+
-
-To achieve:
-- Map every major JD requirement to resume content
-- Ensure 80%+ of JD keywords appear in resume
-- Use exact phrasing from JD
-- Maintain natural reading flow
-
-==========================================
-OUTPUT FORMAT:
-
-Return ONLY valid JSON (no markdown, no backticks):
-
-{
-  "resume": {
-    "summary": "Keyword-rich 2-3 sentence summary",
-    "skills": {
-      "Category from JD": ["skill1", "skill2"],
-      "Another Category": ["skill3", "skill4"]
-    },
-    "experience": [
-      {
-        "company": "Company Name",
-        "position": "Position",
-        "period": "MM/YYYY - Present",
-        "location": "City, State",
-        "achievements": [
-          "Keyword-optimized bullet with metrics",
-          "Another optimized bullet",
-          "Third bullet with JD terminology"
-        ]
-      }
-    ],
-    "projects": [
-      {
-        "name": "Project Name",
-        "description": "Description with JD keywords",
-        "technologies": ["Tech1", "Tech2"]
-      }
-    ],
-    "certifications": [
-      {
-        "name": "Cert Name",
-        "issuer": "Issuer",
-        "date": "YYYY"
-      }
-    ],
-    "education": [
-      {
-        "school": "University",
-        "degree": "Degree",
-        "field": "Field",
-        "year": "YYYY",
-        "gpa": "X.X/4.0"
-      }
-    ]
-  },
-  "atsScore": 97,
-  "matchedKeywords": ["comprehensive", "list", "of", "keywords"],
-  "optimizationStrategy": "Brief explanation of tailoring strategy"
-}
-
-==========================================
-EXAMPLE OPTIMIZATION:
-
-MASTER RESUME: "Analyzed customer data using Python"
-
-JD KEYWORDS: "Python, data analysis, machine learning, SQL, business intelligence"
-
-OPTIMIZED: "Performed comprehensive data analysis using Python (Pandas, NumPy) and SQL to process 5M+ customer records, developed machine learning models for predictive insights, and delivered business intelligence reports that improved customer retention by 25%"
-
-WHY: ✅ All JD keywords included ✅ Quantified ✅ Believable for 2-3 years ✅ Natural flow
-
-==========================================
-BEGIN ULTRA-ATS OPTIMIZATION NOW.
-Target: 97%+ match rate.
-Include ALL experiences.
-Calibrate for 2-3 years experience level.
-Maximize keyword density naturally.`;
-}
-
-function parseResponse(text) {
-    try {
-        const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-        return JSON.parse(cleanText);
-    } catch (error) {
-        console.error('Failed to parse response:', error);
-        throw new Error('Failed to parse AI response');
     }
 }
