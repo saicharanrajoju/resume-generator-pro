@@ -1,266 +1,415 @@
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, UnderlineType } from 'docx';
+import {
+    Document,
+    Packer,
+    Paragraph,
+    TextRun,
+    AlignmentType,
+    BorderStyle,
+    TabStopType,
+    TabStopPosition,
+    convertInchesToTwip
+} from 'docx';
 import { saveAs } from 'file-saver';
 
 const docxService = {
-    async generateResume(resumeData, userProfile) {
+    async generateResume(resumeData, parsedData) {
         const sections = [];
+        const personalInfo = parsedData.personalInfo || {};
 
-        // HEADER - Name and Contact
+        // ============================================
+        // HEADER - Name (25pt, Regular, Center)
+        // ============================================
+        const fullName = `${personalInfo.firstName || ''} ${personalInfo.lastName || ''}`.trim();
+
         sections.push(
             new Paragraph({
                 children: [
                     new TextRun({
-                        text: `${userProfile.personalInfo.firstName} ${userProfile.personalInfo.lastName}`,
-                        bold: true,
-                        size: 32, // 16pt
-                        font: 'Calibri'
+                        text: fullName,
+                        size: 50, // 25pt
+                        font: 'Georgia', // Closest to Charter BT
+                        color: '000000'
                     })
                 ],
                 alignment: AlignmentType.CENTER,
-                spacing: { after: 200 }
+                spacing: { after: 120 } // 6pt after
             })
         );
 
-        // Contact Info Line
+        // ============================================
+        // CONTACT INFO LINE (10pt, Regular, Center)
+        // Format: City, State | email | phone | linkedin
+        // ============================================
         const contactParts = [];
-        if (userProfile.personalInfo.address?.city) {
-            contactParts.push(`${userProfile.personalInfo.address.city}, ${userProfile.personalInfo.address.state || ''}`);
+
+        if (personalInfo.address?.city && personalInfo.address?.state) {
+            contactParts.push(`${personalInfo.address.city}, ${personalInfo.address.state}`);
         }
-        if (userProfile.personalInfo.email) {
-            contactParts.push(userProfile.personalInfo.email);
+        if (personalInfo.email) {
+            contactParts.push(personalInfo.email);
         }
-        if (userProfile.personalInfo.phone) {
-            contactParts.push(userProfile.personalInfo.phone);
+        if (personalInfo.phone) {
+            contactParts.push(personalInfo.phone);
         }
-        if (userProfile.onlinePresence?.linkedin) {
-            contactParts.push(userProfile.onlinePresence.linkedin);
+        if (parsedData.onlinePresence?.linkedin) {
+            const linkedinUrl = parsedData.onlinePresence.linkedin;
+            const linkedinDisplay = linkedinUrl.replace('https://', '').replace('http://', '');
+            contactParts.push(linkedinDisplay);
         }
 
-        sections.push(
-            new Paragraph({
-                text: contactParts.join(' | '),
-                alignment: AlignmentType.CENTER,
-                spacing: { after: 300 }
-            })
-        );
-
-        // SUMMARY SECTION
-        if (resumeData.summary || userProfile.professionalSummary) {
+        if (contactParts.length > 0) {
             sections.push(
-                this.createSectionHeader('SUMMARY'),
                 new Paragraph({
-                    text: resumeData.summary || userProfile.professionalSummary,
-                    spacing: { after: 300 }
+                    children: [
+                        new TextRun({
+                            text: contactParts.join(' | '),
+                            size: 20, // 10pt
+                            font: 'Georgia',
+                            color: '000000'
+                        })
+                    ],
+                    alignment: AlignmentType.CENTER,
+                    spacing: { after: 120 } // 6pt after
                 })
             );
         }
 
+        // ============================================
+        // SUMMARY SECTION
+        // ============================================
+        if (resumeData.summary) {
+            sections.push(
+                this.createSectionHeader('Summary'),
+                new Paragraph({
+                    children: [
+                        new TextRun({
+                            text: resumeData.summary,
+                            size: 20, // 10pt
+                            font: 'Georgia',
+                            color: '000000'
+                        })
+                    ],
+                    spacing: { after: 120 }, // 6pt after
+                    alignment: AlignmentType.JUSTIFIED
+                })
+            );
+        }
+
+        // ============================================
         // TECHNICAL SKILLS SECTION
-        if (resumeData.skills && resumeData.skills.length > 0) {
-            sections.push(this.createSectionHeader('TECHNICAL SKILLS'));
+        // Format: Category Name: skill1, skill2, skill3
+        // ============================================
+        if (resumeData.skills && Object.keys(resumeData.skills).length > 0) {
+            sections.push(this.createSectionHeader('Technical Skills'));
 
-            // Group skills by category
-            const skillGroups = this.groupSkills(resumeData.skills, userProfile.skills);
-
-            skillGroups.forEach(group => {
+            Object.entries(resumeData.skills).forEach(([category, skills]) => {
                 sections.push(
                     new Paragraph({
                         children: [
                             new TextRun({
-                                text: `${group.category}: `,
-                                bold: true
+                                text: `${category}: `,
+                                bold: true,
+                                size: 20, // 10pt
+                                font: 'Georgia',
+                                color: '000000'
                             }),
                             new TextRun({
-                                text: group.skills.join(', ')
+                                text: Array.isArray(skills) ? skills.join(', ') : skills,
+                                size: 20, // 10pt
+                                font: 'Georgia',
+                                color: '000000'
                             })
                         ],
-                        spacing: { after: 100 }
+                        spacing: { after: 40 } // Tight spacing
                     })
                 );
             });
 
-            sections.push(new Paragraph({ text: '', spacing: { after: 200 } }));
+            sections.push(new Paragraph({ text: '', spacing: { after: 120 } })); // 6pt after section
         }
 
+        // ============================================
         // PROFESSIONAL EXPERIENCE SECTION
+        // ============================================
         if (resumeData.experience && resumeData.experience.length > 0) {
-            sections.push(this.createSectionHeader('PROFESSIONAL EXPERIENCE'));
+            sections.push(this.createSectionHeader('Professional Experience'));
 
             resumeData.experience.forEach((exp, index) => {
-                // Job Title and Company
+                // Line 1: Job Title (Bold), Company (Regular) | Date (Right-aligned)
                 sections.push(
                     new Paragraph({
                         children: [
                             new TextRun({
-                                text: `${exp.position}`,
-                                bold: true
+                                text: exp.position,
+                                bold: true,
+                                size: 20, // 10pt
+                                font: 'Georgia',
+                                color: '000000'
                             }),
                             new TextRun({
-                                text: `, ${exp.company}`
+                                text: `, ${exp.company}`,
+                                size: 20, // 10pt
+                                font: 'Georgia',
+                                color: '000000'
                             })
                         ],
-                        spacing: { after: 100 }
+                        tabStops: [
+                            {
+                                type: TabStopType.RIGHT,
+                                position: TabStopPosition.MAX
+                            }
+                        ],
+                        spacing: { after: 40 }
                     })
                 );
 
-                // Dates (right-aligned would need table, so we'll put inline)
-                sections.push(
-                    new Paragraph({
-                        text: exp.period,
-                        italics: true,
-                        spacing: { after: 100 }
-                    })
-                );
+                // Bullet Points - Left Indent 0.15", Hanging 0.25"
+                exp.achievements.forEach((achievement) => {
+                    // Bold key metrics/technologies within text
+                    const enhancedAchievement = this.boldifyKeywords(achievement);
 
-                // Achievements as bullets
-                exp.achievements.forEach(achievement => {
                     sections.push(
                         new Paragraph({
-                            text: achievement,
+                            children: enhancedAchievement,
                             bullet: { level: 0 },
-                            spacing: { after: 50 }
+                            spacing: { after: 40 },
+                            indent: {
+                                left: convertInchesToTwip(0.15),
+                                hanging: convertInchesToTwip(0.25)
+                            }
                         })
                     );
                 });
 
                 // Space between jobs
                 if (index < resumeData.experience.length - 1) {
-                    sections.push(new Paragraph({ text: '', spacing: { after: 150 } }));
+                    sections.push(new Paragraph({ text: '', spacing: { after: 120 } }));
                 }
             });
 
-            sections.push(new Paragraph({ text: '', spacing: { after: 200 } }));
+            sections.push(new Paragraph({ text: '', spacing: { after: 120 } }));
         }
 
+        // ============================================
         // PROJECTS SECTION
-        if (userProfile.projects && userProfile.projects.length > 0) {
-            sections.push(this.createSectionHeader('PROJECTS'));
+        // ============================================
+        if (resumeData.projects && resumeData.projects.length > 0) {
+            sections.push(this.createSectionHeader('Projects'));
 
-            userProfile.projects.forEach((project, index) => {
+            resumeData.projects.forEach((project, index) => {
+                // Project Name (Bold)
                 sections.push(
                     new Paragraph({
-                        text: project.name,
-                        bold: true,
-                        spacing: { after: 100 }
+                        children: [
+                            new TextRun({
+                                text: project.name,
+                                bold: true,
+                                size: 20,
+                                font: 'Georgia',
+                                color: '000000'
+                            })
+                        ],
+                        spacing: { after: 40 }
                     })
                 );
 
+                // Description as bullet
                 if (project.description) {
                     sections.push(
                         new Paragraph({
-                            text: project.description,
+                            children: [
+                                new TextRun({
+                                    text: project.description,
+                                    size: 20,
+                                    font: 'Georgia',
+                                    color: '000000'
+                                })
+                            ],
                             bullet: { level: 0 },
-                            spacing: { after: 50 }
+                            spacing: { after: 40 },
+                            indent: {
+                                left: convertInchesToTwip(0.15),
+                                hanging: convertInchesToTwip(0.25)
+                            }
                         })
                     );
                 }
 
+                // Technologies Used
                 if (project.technologies && project.technologies.length > 0) {
                     sections.push(
                         new Paragraph({
                             children: [
                                 new TextRun({
                                     text: 'Technologies Used: ',
-                                    bold: true
+                                    bold: true,
+                                    size: 20,
+                                    font: 'Georgia',
+                                    color: '000000'
                                 }),
                                 new TextRun({
-                                    text: project.technologies.join(', ')
+                                    text: project.technologies.join(', '),
+                                    size: 20,
+                                    font: 'Georgia',
+                                    color: '000000'
                                 })
                             ],
                             bullet: { level: 0 },
-                            spacing: { after: 50 }
+                            spacing: { after: 40 },
+                            indent: {
+                                left: convertInchesToTwip(0.15),
+                                hanging: convertInchesToTwip(0.25)
+                            }
                         })
                     );
                 }
 
-                if (index < userProfile.projects.length - 1) {
-                    sections.push(new Paragraph({ text: '', spacing: { after: 150 } }));
+                if (index < resumeData.projects.length - 1) {
+                    sections.push(new Paragraph({ text: '', spacing: { after: 120 } }));
                 }
             });
 
-            sections.push(new Paragraph({ text: '', spacing: { after: 200 } }));
+            sections.push(new Paragraph({ text: '', spacing: { after: 120 } }));
         }
 
+        // ============================================
         // CERTIFICATIONS SECTION
-        if (userProfile.certifications && userProfile.certifications.length > 0) {
-            sections.push(this.createSectionHeader('CERTIFICATIONS'));
+        // ============================================
+        if (resumeData.certifications && resumeData.certifications.length > 0) {
+            sections.push(this.createSectionHeader('Certifications'));
 
-            userProfile.certifications.forEach(cert => {
-                const certText = cert.issueDate
-                    ? `${cert.name} (${cert.issueDate})`
+            resumeData.certifications.forEach(cert => {
+                const certText = cert.date
+                    ? `${cert.name} (${cert.date})`
                     : cert.name;
 
                 sections.push(
                     new Paragraph({
-                        text: certText,
-                        spacing: { after: 100 }
+                        children: [
+                            new TextRun({
+                                text: certText,
+                                size: 20,
+                                font: 'Georgia',
+                                color: '000000'
+                            })
+                        ],
+                        spacing: { after: 40 }
                     })
                 );
             });
 
-            sections.push(new Paragraph({ text: '', spacing: { after: 200 } }));
+            sections.push(new Paragraph({ text: '', spacing: { after: 120 } }));
         }
 
+        // ============================================
         // EDUCATION SECTION
+        // ============================================
         if (resumeData.education && resumeData.education.length > 0) {
-            sections.push(this.createSectionHeader('EDUCATION'));
+            sections.push(this.createSectionHeader('Education'));
 
             resumeData.education.forEach(edu => {
+                // School (Bold), Degree
                 sections.push(
                     new Paragraph({
                         children: [
                             new TextRun({
                                 text: `${edu.school}`,
-                                bold: true
+                                bold: true,
+                                size: 20,
+                                font: 'Georgia',
+                                color: '000000'
                             }),
                             new TextRun({
-                                text: `, ${edu.degree} in ${edu.field}`
-                            })
+                                text: `, ${edu.degree}`,
+                                size: 20,
+                                font: 'Georgia',
+                                color: '000000'
+                            }),
+                            ...(edu.field ? [
+                                new TextRun({
+                                    text: ` in ${edu.field}`,
+                                    size: 20,
+                                    font: 'Georgia',
+                                    color: '000000'
+                                })
+                            ] : [])
                         ],
-                        spacing: { after: 100 }
+                        spacing: { after: 40 }
                     })
                 );
 
-                if (edu.year) {
-                    sections.push(
-                        new Paragraph({
-                            text: edu.year,
-                            italics: true,
-                            spacing: { after: 100 }
-                        })
-                    );
-                }
-
+                // GPA as bullet
                 if (edu.gpa) {
                     sections.push(
                         new Paragraph({
                             children: [
                                 new TextRun({
                                     text: `GPA: `,
-                                    bold: true
+                                    bold: true,
+                                    size: 20,
+                                    font: 'Georgia',
+                                    color: '000000'
                                 }),
                                 new TextRun({
-                                    text: edu.gpa
+                                    text: edu.gpa,
+                                    size: 20,
+                                    font: 'Georgia',
+                                    color: '000000'
                                 })
                             ],
                             bullet: { level: 0 },
-                            spacing: { after: 100 }
+                            spacing: { after: 40 },
+                            indent: {
+                                left: convertInchesToTwip(0.15),
+                                hanging: convertInchesToTwip(0.25)
+                            }
+                        })
+                    );
+                }
+
+                // Relevant Coursework
+                if (edu.relevantCoursework) {
+                    sections.push(
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: `Relevant Coursework: `,
+                                    bold: true,
+                                    size: 20,
+                                    font: 'Georgia',
+                                    color: '000000'
+                                }),
+                                new TextRun({
+                                    text: edu.relevantCoursework,
+                                    size: 20,
+                                    font: 'Georgia',
+                                    color: '000000'
+                                })
+                            ],
+                            bullet: { level: 0 },
+                            spacing: { after: 40 },
+                            indent: {
+                                left: convertInchesToTwip(0.15),
+                                hanging: convertInchesToTwip(0.25)
+                            }
                         })
                     );
                 }
             });
         }
 
-        // Create Document
+        // ============================================
+        // CREATE DOCUMENT
+        // ============================================
         const doc = new Document({
             sections: [{
                 properties: {
                     page: {
                         margin: {
-                            top: 1440,    // 1 inch = 1440 twips
-                            right: 1440,
-                            bottom: 1440,
-                            left: 1440
+                            top: convertInchesToTwip(0.8),   // 0.8"
+                            bottom: convertInchesToTwip(1.0), // 1.0"
+                            left: convertInchesToTwip(0.75),  // 0.75"
+                            right: convertInchesToTwip(0.75)  // 0.75"
                         }
                     }
                 },
@@ -270,10 +419,11 @@ const docxService = {
 
         // Generate and Download
         const blob = await Packer.toBlob(doc);
-        const fileName = `Resume_${userProfile.personalInfo.firstName}_${userProfile.personalInfo.lastName}.docx`;
+        const fileName = `${personalInfo.firstName}_${personalInfo.lastName}_Resume.docx`;
         saveAs(blob, fileName);
     },
 
+    // Create Section Header (12pt, Bold, Bottom Border)
     createSectionHeader(text) {
         return new Paragraph({
             children: [
@@ -281,49 +431,78 @@ const docxService = {
                     text: text,
                     bold: true,
                     size: 24, // 12pt
-                    font: 'Calibri'
+                    font: 'Georgia',
+                    color: '000000'
                 })
             ],
             border: {
                 bottom: {
                     color: '000000',
                     space: 1,
-                    style: 'single',
+                    style: BorderStyle.SINGLE,
                     size: 6
                 }
             },
-            spacing: { before: 200, after: 150 }
+            spacing: { before: 120, after: 60 } // 6pt before, 3pt after
         });
     },
 
-    groupSkills(resumeSkills, profileSkills) {
-        const groups = [];
+    // Bold key metrics and technologies in achievement text
+    boldifyKeywords(text) {
+        const keywords = [
+            'Python', 'SQL', 'PySpark', 'Databricks', 'BigQuery', 'Tableau', 'Power BI',
+            'AWS', 'Azure', 'GCP', 'Pandas', 'NumPy', 'TensorFlow', 'scikit-learn',
+            'BERT', 'Machine Learning', 'ML', 'Data Science', 'ETL', 'GitHub'
+        ];
 
-        // If we have technical skills from profile
-        if (profileSkills?.technical && profileSkills.technical.length > 0) {
-            groups.push({
-                category: 'Programming & Tools',
-                skills: profileSkills.technical
-            });
+        const parts = [];
+        let remaining = text;
+
+        // Simple implementation: look for numbers with % or $ or M+
+        const metricRegex = /(\d+[\d,]*\+?\s*(?:%|M\+|hours?|TB|GB|records?))/gi;
+
+        let lastIndex = 0;
+        let match;
+
+        while ((match = metricRegex.exec(text)) !== null) {
+            // Add text before match
+            if (match.index > lastIndex) {
+                parts.push(new TextRun({
+                    text: text.substring(lastIndex, match.index),
+                    size: 20,
+                    font: 'Georgia',
+                    color: '000000'
+                }));
+            }
+
+            // Add bold metric
+            parts.push(new TextRun({
+                text: match[0],
+                bold: true,
+                size: 20,
+                font: 'Georgia',
+                color: '000000'
+            }));
+
+            lastIndex = match.index + match[0].length;
         }
 
-        // If we have soft skills
-        if (profileSkills?.soft && profileSkills.soft.length > 0) {
-            groups.push({
-                category: 'Additional Skills',
-                skills: profileSkills.soft
-            });
+        // Add remaining text
+        if (lastIndex < text.length) {
+            parts.push(new TextRun({
+                text: text.substring(lastIndex),
+                size: 20,
+                font: 'Georgia',
+                color: '000000'
+            }));
         }
 
-        // Fallback to resume skills if no profile skills
-        if (groups.length === 0 && resumeSkills.length > 0) {
-            groups.push({
-                category: 'Skills',
-                skills: resumeSkills
-            });
-        }
-
-        return groups;
+        return parts.length > 0 ? parts : [new TextRun({
+            text: text,
+            size: 20,
+            font: 'Georgia',
+            color: '000000'
+        })];
     }
 };
 
