@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { claudeService } from '../../services/claudeService';
-import { docxService } from '../../services/docxService';
+import docxService from '../../services/docxService';
 
 function ResumeGenerator({ masterResume }) {
     const { user } = useAuth();
