@@ -1,25 +1,48 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from './hooks/useAuth';
 import Login from './components/Auth/Login';
 import Dashboard from './components/Dashboard';
-import ProtectedRoute from './components/Auth/ProtectedRoute';
 
 function App() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
   return (
-    <BrowserRouter>
+    <Router>
       <Routes>
-        <Route path="/" element={<Login />} />
+        {/* Public Routes */}
         <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          }
+          path="/login"
+          element={!user ? <Login /> : <Navigate to="/dashboard" replace />}
+        />
+
+        {/* Protected Routes */}
+        <Route
+          path="/dashboard/*"
+          element={user ? <Dashboard /> : <Navigate to="/login" replace />}
+        />
+
+        {/* Root Redirect */}
+        <Route
+          path="/"
+          element={<Navigate to={user ? "/dashboard" : "/login"} replace />}
+        />
+
+        {/* 404 Redirect */}
+        <Route
+          path="*"
+          element={<Navigate to={user ? "/dashboard" : "/login"} replace />}
         />
       </Routes>
-    </BrowserRouter>
+    </Router>
   );
 }
 
 export default App;
-
