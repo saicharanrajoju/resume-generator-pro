@@ -6,16 +6,27 @@ import MasterResumeUpload from './Profile/MasterResumeUpload';
 import ResumeGenerator from './Generator/ResumeGenerator';
 
 function Dashboard() {
-    const { user, logout } = useAuth();
+    const { user, logout, loading: authLoading } = useAuth();
     const navigate = useNavigate();
     const [masterResume, setMasterResume] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        loadMasterResume();
-    }, [user]);
+        // Only load master resume if user is authenticated
+        if (user && !authLoading) {
+            loadMasterResume();
+        } else if (!authLoading && !user) {
+            // User is not authenticated, redirect to login
+            navigate('/login', { replace: true });
+        }
+    }, [user, authLoading, navigate]);
 
     const loadMasterResume = async () => {
+        if (!user?.uid) {
+            setLoading(false);
+            return;
+        }
+
         try {
             const resume = await masterResumeService.getMasterResume(user.uid);
             setMasterResume(resume);
@@ -31,12 +42,18 @@ function Dashboard() {
         navigate('/login', { replace: true });
     };
 
-    if (loading) {
+    // Show loading while checking authentication or loading resume
+    if (authLoading || loading) {
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
             </div>
         );
+    }
+
+    // If not authenticated after loading, don't render (will redirect)
+    if (!user) {
+        return null;
     }
 
     return (
@@ -100,6 +117,7 @@ function Dashboard() {
                         <DashboardHome
                             masterResume={masterResume}
                             navigate={navigate}
+                            user={user}
                         />
                     }
                 />
@@ -143,7 +161,7 @@ function Dashboard() {
 }
 
 // Dashboard Home Component
-function DashboardHome({ masterResume, navigate }) {
+function DashboardHome({ masterResume, navigate, user }) {
     if (!masterResume) {
         return (
             <div className="max-w-4xl mx-auto px-4 py-12">
@@ -204,7 +222,7 @@ function DashboardHome({ masterResume, navigate }) {
                 <div className="flex items-start justify-between">
                     <div>
                         <h2 className="text-3xl font-bold mb-2">
-                            Welcome back, {personalInfo.firstName || 'there'}!
+                            Welcome back, {personalInfo.firstName || user.displayName || 'there'}!
                         </h2>
                         <div className="space-y-2 text-blue-100">
                             <p className="flex items-center gap-2">
