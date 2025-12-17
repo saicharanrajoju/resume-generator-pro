@@ -1,19 +1,21 @@
-import { Document, Packer, Paragraph, TextRun, AlignmentType, TabStopType, convertInchesToTwip, HeadingLevel, ExternalHyperlink } from 'docx';
+import {
+    Document,
+    Packer,
+    Paragraph,
+    TextRun,
+    AlignmentType,
+    TabStopType,
+    convertInchesToTwip,
+    ExternalHyperlink,
+    BorderStyle
+} from 'docx';
 import { saveAs } from 'file-saver';
 
 /**
- * EXACT TEMPLATE REPLICATION
- * Based on analysis of Information-Technology-Resume.docx
+ * WORKING DOCX GENERATOR - EXACT TEMPLATE MATCH
  * 
- * Key findings:
- * - Margins: Top 0.4861", Bottom 0.1944", Left/Right 0.4028"
- * - Name: Title style, left-aligned (NOT centered, NOT bold)
- * - Contact: Heading 2 style, CENTER-aligned, line spacing 170180
- * - Section headers: Heading 1 style (underlined via style definition)
- * - Subsection headers: Heading 2 style, 7.3pt space before
- * - Body text: 0.097" left indent
- * - Tab stops at specific positions for dates
- * - Hyperlinks in contact info (mailto: and https://)
+ * This version manually creates every element to match your Word template exactly
+ * No relying on built-in styles that don't work properly
  */
 
 const docxService = {
@@ -22,124 +24,149 @@ const docxService = {
         const personalInfo = parsedData.personalInfo || {};
 
         // ============================================
-        // 1. NAME (Title style, LEFT aligned, NOT bold)
+        // 1. NAME (Large, Black, Left-aligned)
         // ============================================
         const fullName = `${personalInfo.firstName || ''} ${personalInfo.lastName || ''}`.trim();
 
         sections.push(
             new Paragraph({
-                text: fullName,
-                heading: HeadingLevel.TITLE,
+                children: [
+                    new TextRun({
+                        text: fullName,
+                        size: 32, // 16pt
+                        bold: false,
+                        font: 'Calibri',
+                        color: '000000'
+                    })
+                ],
                 alignment: AlignmentType.LEFT,
-                spacing: { after: 0 }
+                spacing: { after: 100 }
             })
         );
 
         // ============================================
-        // 2. CONTACT LINE (Heading 2, CENTER, special line spacing, with hyperlinks)
-        // Line spacing: 170180 (very specific)
+        // 2. CONTACT LINE (Centered, with REAL hyperlinks)
         // ============================================
-        const contactChildren = [];
+        const contactParts = [];
 
-        // City, State, Zip
+        // City, State
         if (personalInfo.address?.city || personalInfo.address?.state) {
             const cityState = [
                 personalInfo.address?.city,
-                personalInfo.address?.state,
-                personalInfo.address?.zipCode
+                personalInfo.address?.state
             ].filter(Boolean).join(', ');
 
-            contactChildren.push(
-                new TextRun({ text: cityState })
+            contactParts.push(
+                new TextRun({
+                    text: cityState,
+                    size: 22, // 11pt
+                    font: 'Calibri',
+                    color: '000000'
+                })
             );
-            contactChildren.push(new TextRun({ text: ' | ' }));
         }
 
         // Phone
         if (personalInfo.phone) {
-            contactChildren.push(new TextRun({ text: personalInfo.phone }));
-            contactChildren.push(new TextRun({ text: ' | ' }));
-        }
-
-        // Email (as hyperlink)
-        if (personalInfo.email) {
-            contactChildren.push(
-                new ExternalHyperlink({
-                    children: [
-                        new TextRun({
-                            text: personalInfo.email,
-                            style: "Hyperlink",
-                            color: "0563C1",
-                            underline: {
-                                type: "single"
-                            }
-                        })
-                    ],
-                    link: `mailto:${personalInfo.email}`
+            if (contactParts.length > 0) {
+                contactParts.push(new TextRun({ text: ' | ', size: 22, font: 'Calibri' }));
+            }
+            contactParts.push(
+                new TextRun({
+                    text: personalInfo.phone,
+                    size: 22,
+                    font: 'Calibri',
+                    color: '000000'
                 })
             );
-            contactChildren.push(new TextRun({ text: ' | ' }));
         }
 
-        // LinkedIn (as hyperlink)
+        // Email (as clickable hyperlink)
+        if (personalInfo.email) {
+            if (contactParts.length > 0) {
+                contactParts.push(new TextRun({ text: ' | ', size: 22, font: 'Calibri' }));
+            }
+            contactParts.push(
+                new TextRun({
+                    text: personalInfo.email,
+                    size: 22,
+                    font: 'Calibri',
+                    color: '0563C1', // Blue
+                    underline: {}
+                })
+            );
+        }
+
+        // LinkedIn (as clickable hyperlink)
         if (parsedData.onlinePresence?.linkedin) {
+            if (contactParts.length > 0) {
+                contactParts.push(new TextRun({ text: ' | LinkedIn: ', size: 22, font: 'Calibri' }));
+            }
+
             const linkedinUrl = parsedData.onlinePresence.linkedin;
             const linkedinDisplay = linkedinUrl.replace('https://', '').replace('http://', '');
 
-            contactChildren.push(new TextRun({ text: 'LinkedIn: ' }));
-            contactChildren.push(
-                new ExternalHyperlink({
-                    children: [
-                        new TextRun({
-                            text: linkedinDisplay,
-                            style: "Hyperlink",
-                            color: "0563C1",
-                            underline: {
-                                type: "single"
-                            }
-                        })
-                    ],
-                    link: linkedinUrl
+            contactParts.push(
+                new TextRun({
+                    text: linkedinDisplay,
+                    size: 22,
+                    font: 'Calibri',
+                    color: '0563C1', // Blue
+                    underline: {}
                 })
             );
         }
 
         sections.push(
             new Paragraph({
-                children: contactChildren,
-                heading: HeadingLevel.HEADING_2,
+                children: contactParts,
                 alignment: AlignmentType.CENTER,
-                spacing: {
-                    after: 0,
-                    line: 170180  // Exact line spacing from template
-                }
+                spacing: { after: 200 }
             })
         );
-
-        // Empty paragraph
-        sections.push(new Paragraph({ text: '' }));
 
         // ============================================
         // 3. SUMMARY SECTION
         // ============================================
         if (resumeData.summary) {
-            // Header: Heading 1, 0.097" indent
+            // Section Header with underline
             sections.push(
                 new Paragraph({
-                    text: 'SUMMARY',
-                    heading: HeadingLevel.HEADING_1,
-                    indent: { left: convertInchesToTwip(0.097) },
-                    spacing: { before: 0, after: 0 }
+                    children: [
+                        new TextRun({
+                            text: 'SUMMARY',
+                            size: 24, // 12pt
+                            bold: true,
+                            font: 'Calibri',
+                            color: '000000'
+                        })
+                    ],
+                    alignment: AlignmentType.LEFT,
+                    spacing: { before: 100, after: 100 },
+                    border: {
+                        bottom: {
+                            color: '000000',
+                            space: 1,
+                            style: BorderStyle.SINGLE,
+                            size: 6
+                        }
+                    }
                 })
             );
 
-            // Content: Body Text style, 0.097" indent
+            // Summary content
             sections.push(
                 new Paragraph({
-                    text: resumeData.summary,
-                    style: 'BodyText',
-                    indent: { left: convertInchesToTwip(0.097) },
-                    spacing: { after: 0 }
+                    children: [
+                        new TextRun({
+                            text: resumeData.summary,
+                            size: 22, // 11pt
+                            font: 'Calibri',
+                            color: '000000'
+                        })
+                    ],
+                    alignment: AlignmentType.LEFT,
+                    spacing: { after: 200 }
                 })
             );
         }
@@ -148,138 +175,222 @@ const docxService = {
         // 4. TECHNICAL SKILLS
         // ============================================
         if (resumeData.skills && Object.keys(resumeData.skills).length > 0) {
+            // Section Header with underline
             sections.push(
                 new Paragraph({
-                    text: 'TECHNICAL SKILLS',
-                    heading: HeadingLevel.HEADING_2,
-                    spacing: { before: 146, after: 0 } // 7.3pt = 146 twips
+                    children: [
+                        new TextRun({
+                            text: 'TECHNICAL SKILLS',
+                            size: 24, // 12pt
+                            bold: true,
+                            font: 'Calibri',
+                            color: '000000'
+                        })
+                    ],
+                    alignment: AlignmentType.LEFT,
+                    spacing: { before: 100, after: 100 },
+                    border: {
+                        bottom: {
+                            color: '000000',
+                            space: 1,
+                            style: BorderStyle.SINGLE,
+                            size: 6
+                        }
+                    }
                 })
             );
 
+            // Skills content - bold category, regular items
             Object.entries(resumeData.skills).forEach(([category, skills]) => {
                 sections.push(
                     new Paragraph({
                         children: [
                             new TextRun({
                                 text: `${category}: `,
-                                bold: true
+                                bold: true,
+                                size: 22,
+                                font: 'Calibri',
+                                color: '000000'
                             }),
                             new TextRun({
-                                text: Array.isArray(skills) ? skills.join(', ') : skills
+                                text: Array.isArray(skills) ? skills.join(', ') : skills,
+                                size: 22,
+                                font: 'Calibri',
+                                color: '000000'
                             })
                         ],
-                        style: 'BodyText',
-                        indent: { left: convertInchesToTwip(0.097) },
-                        spacing: { after: 0 }
+                        spacing: { after: 80 }
                     })
                 );
             });
 
-            sections.push(new Paragraph({ text: '' }));
+            sections.push(new Paragraph({ text: '', spacing: { after: 200 } }));
         }
 
         // ============================================
         // 5. PROFESSIONAL EXPERIENCE
         // ============================================
         if (resumeData.experience && resumeData.experience.length > 0) {
+            // Section Header with underline
             sections.push(
                 new Paragraph({
-                    text: 'PROFESSIONAL EXPERIENCE',
-                    heading: HeadingLevel.HEADING_1,
-                    spacing: { before: 1, after: 0 }
+                    children: [
+                        new TextRun({
+                            text: 'PROFESSIONAL EXPERIENCE',
+                            size: 24,
+                            bold: true,
+                            font: 'Calibri',
+                            color: '000000'
+                        })
+                    ],
+                    alignment: AlignmentType.LEFT,
+                    spacing: { before: 100, after: 100 },
+                    border: {
+                        bottom: {
+                            color: '000000',
+                            space: 1,
+                            style: BorderStyle.SINGLE,
+                            size: 6
+                        }
+                    }
                 })
             );
 
             resumeData.experience.forEach((exp, index) => {
-                // Job title line with date (tab at 6.078")
+                // Job title line: "Position, Company" (bold position) with date on right
                 const titleChildren = [
                     new TextRun({
                         text: exp.position,
-                        bold: true
+                        bold: true,
+                        size: 22,
+                        font: 'Calibri',
+                        color: '000000'
                     }),
-                    new TextRun({ text: ', ' }),
-                    new TextRun({ text: exp.company })
+                    new TextRun({
+                        text: `, ${exp.company}`,
+                        size: 22,
+                        font: 'Calibri',
+                        color: '000000'
+                    })
                 ];
 
                 if (exp.period) {
                     titleChildren.push(new TextRun({ text: '\t' }));
-                    titleChildren.push(new TextRun({ text: exp.period }));
+                    titleChildren.push(
+                        new TextRun({
+                            text: exp.period,
+                            size: 22,
+                            font: 'Calibri',
+                            color: '000000'
+                        })
+                    );
                 }
 
                 sections.push(
                     new Paragraph({
                         children: titleChildren,
-                        indent: { left: convertInchesToTwip(0.097) },
                         tabStops: [
                             {
-                                type: TabStopType.LEFT,
-                                position: convertInchesToTwip(6.078)
+                                type: TabStopType.RIGHT,
+                                position: convertInchesToTwip(6.5) // Right edge
                             }
                         ],
-                        spacing: { before: 1, after: 1 }
+                        spacing: { before: 100, after: 80 }
                     })
                 );
 
-                // Bullets
+                // Achievement bullets
                 exp.achievements.forEach((achievement) => {
                     sections.push(
                         new Paragraph({
-                            text: achievement,
-                            bullet: { level: 0 },
-                            indent: {
-                                left: convertInchesToTwip(0.347),
-                                hanging: convertInchesToTwip(0.25)
+                            children: [
+                                new TextRun({
+                                    text: achievement,
+                                    size: 22,
+                                    font: 'Calibri',
+                                    color: '000000'
+                                })
+                            ],
+                            bullet: {
+                                level: 0
                             },
-                            spacing: { before: 1, after: 0 }
+                            spacing: { after: 60 }
                         })
                     );
                 });
 
+                // Space between jobs
                 if (index < resumeData.experience.length - 1) {
-                    sections.push(new Paragraph({ text: '' }));
+                    sections.push(new Paragraph({ text: '', spacing: { after: 100 } }));
                 }
             });
 
-            sections.push(new Paragraph({ text: '' }));
+            sections.push(new Paragraph({ text: '', spacing: { after: 200 } }));
         }
 
         // ============================================
         // 6. PROJECTS
         // ============================================
         if (resumeData.projects && resumeData.projects.length > 0) {
+            // Section Header with underline
             sections.push(
                 new Paragraph({
-                    text: 'PROJECTS',
-                    heading: HeadingLevel.HEADING_2,
-                    spacing: { before: 0, after: 0 }
+                    children: [
+                        new TextRun({
+                            text: 'PROJECTS',
+                            size: 24,
+                            bold: true,
+                            font: 'Calibri',
+                            color: '000000'
+                        })
+                    ],
+                    alignment: AlignmentType.LEFT,
+                    spacing: { before: 100, after: 100 },
+                    border: {
+                        bottom: {
+                            color: '000000',
+                            space: 1,
+                            style: BorderStyle.SINGLE,
+                            size: 6
+                        }
+                    }
                 })
             );
 
-            resumeData.projects.forEach((project) => {
-                // Project name with date
+            resumeData.projects.forEach((project, index) => {
+                // Project name (bold) with date on right
                 const projChildren = [
                     new TextRun({
                         text: project.name,
-                        bold: true
+                        bold: true,
+                        size: 22,
+                        font: 'Calibri',
+                        color: '000000'
                     })
                 ];
 
                 if (project.date) {
                     projChildren.push(new TextRun({ text: '\t' }));
-                    projChildren.push(new TextRun({ text: project.date }));
+                    projChildren.push(
+                        new TextRun({
+                            text: project.date,
+                            size: 22,
+                            font: 'Calibri',
+                            color: '000000'
+                        })
+                    );
                 }
 
                 sections.push(
                     new Paragraph({
                         children: projChildren,
-                        indent: { left: convertInchesToTwip(0.097) },
                         tabStops: [
                             {
-                                type: TabStopType.LEFT,
-                                position: convertInchesToTwip(6.083)
+                                type: TabStopType.RIGHT,
+                                position: convertInchesToTwip(6.5)
                             }
                         ],
-                        spacing: { after: 0 }
+                        spacing: { before: 100, after: 80 }
                     })
                 );
 
@@ -287,48 +398,79 @@ const docxService = {
                 if (project.description) {
                     sections.push(
                         new Paragraph({
-                            text: project.description,
+                            children: [
+                                new TextRun({
+                                    text: project.description,
+                                    size: 22,
+                                    font: 'Calibri',
+                                    color: '000000'
+                                })
+                            ],
                             bullet: { level: 0 },
-                            indent: {
-                                left: convertInchesToTwip(0.347),
-                                hanging: convertInchesToTwip(0.25)
-                            },
-                            spacing: { after: 0 }
+                            spacing: { after: 60 }
                         })
                     );
                 }
 
-                // Technologies
+                // Technologies (bullet)
                 if (project.technologies && project.technologies.length > 0) {
                     sections.push(
                         new Paragraph({
                             children: [
-                                new TextRun({ text: 'Technologies Used: ' }),
-                                new TextRun({ text: project.technologies.join(', ') })
+                                new TextRun({
+                                    text: 'Technologies Used: ',
+                                    bold: true,
+                                    size: 22,
+                                    font: 'Calibri',
+                                    color: '000000'
+                                }),
+                                new TextRun({
+                                    text: project.technologies.join(', '),
+                                    size: 22,
+                                    font: 'Calibri',
+                                    color: '000000'
+                                })
                             ],
                             bullet: { level: 0 },
-                            indent: {
-                                left: convertInchesToTwip(0.347),
-                                hanging: convertInchesToTwip(0.25)
-                            },
-                            spacing: { before: 1, after: 0 }
+                            spacing: { after: 60 }
                         })
                     );
                 }
+
+                if (index < resumeData.projects.length - 1) {
+                    sections.push(new Paragraph({ text: '', spacing: { after: 100 } }));
+                }
             });
 
-            sections.push(new Paragraph({ text: '' }));
+            sections.push(new Paragraph({ text: '', spacing: { after: 200 } }));
         }
 
         // ============================================
         // 7. CERTIFICATIONS
         // ============================================
         if (resumeData.certifications && resumeData.certifications.length > 0) {
+            // Section Header with underline
             sections.push(
                 new Paragraph({
-                    text: 'CERTIFICATIONS',
-                    heading: HeadingLevel.HEADING_2,
-                    spacing: { before: 0, after: 0 }
+                    children: [
+                        new TextRun({
+                            text: 'CERTIFICATIONS',
+                            size: 24,
+                            bold: true,
+                            font: 'Calibri',
+                            color: '000000'
+                        })
+                    ],
+                    alignment: AlignmentType.LEFT,
+                    spacing: { before: 100, after: 100 },
+                    border: {
+                        bottom: {
+                            color: '000000',
+                            space: 1,
+                            style: BorderStyle.SINGLE,
+                            size: 6
+                        }
+                    }
                 })
             );
 
@@ -340,39 +482,59 @@ const docxService = {
                         children: [
                             new TextRun({
                                 text: certText,
-                                bold: true
+                                bold: true,
+                                size: 22,
+                                font: 'Calibri',
+                                color: '000000'
                             })
                         ],
-                        style: 'BodyText',
-                        indent: { left: convertInchesToTwip(0.097) },
-                        spacing: { after: 0 }
+                        spacing: { after: 80 }
                     })
                 );
             });
 
-            sections.push(new Paragraph({ text: '' }));
+            sections.push(new Paragraph({ text: '', spacing: { after: 200 } }));
         }
 
         // ============================================
         // 8. EDUCATION
         // ============================================
         if (resumeData.education && resumeData.education.length > 0) {
+            // Section Header with underline
             sections.push(
                 new Paragraph({
-                    text: 'EDUCATION',
-                    heading: HeadingLevel.HEADING_1,
-                    indent: { left: convertInchesToTwip(0.097) },
-                    spacing: { before: 0, after: 0 }
+                    children: [
+                        new TextRun({
+                            text: 'EDUCATION',
+                            size: 24,
+                            bold: true,
+                            font: 'Calibri',
+                            color: '000000'
+                        })
+                    ],
+                    alignment: AlignmentType.LEFT,
+                    spacing: { before: 100, after: 100 },
+                    border: {
+                        bottom: {
+                            color: '000000',
+                            space: 1,
+                            style: BorderStyle.SINGLE,
+                            size: 6
+                        }
+                    }
                 })
             );
 
             resumeData.education.forEach(edu => {
-                // School line (bold + italic) with date
+                // School line (italic) with date (bold) on right
                 const schoolChildren = [
                     new TextRun({
                         text: `${edu.school} | ${edu.degree}`,
+                        italics: true,
                         bold: true,
-                        italics: true
+                        size: 22,
+                        font: 'Calibri',
+                        color: '000000'
                     })
                 ];
 
@@ -381,7 +543,10 @@ const docxService = {
                     schoolChildren.push(
                         new TextRun({
                             text: edu.year,
-                            bold: true
+                            bold: true,
+                            size: 22,
+                            font: 'Calibri',
+                            color: '000000'
                         })
                     );
                 }
@@ -389,22 +554,13 @@ const docxService = {
                 sections.push(
                     new Paragraph({
                         children: schoolChildren,
-                        alignment: AlignmentType.JUSTIFY,
-                        indent: {
-                            left: convertInchesToTwip(0.097),
-                            right: convertInchesToTwip(0.596)
-                        },
                         tabStops: [
                             {
-                                type: TabStopType.LEFT,
-                                position: convertInchesToTwip(5.901)
-                            },
-                            {
-                                type: TabStopType.LEFT,
-                                position: convertInchesToTwip(6.523)
+                                type: TabStopType.RIGHT,
+                                position: convertInchesToTwip(6.5)
                             }
                         ],
-                        spacing: { after: 0 }
+                        spacing: { before: 100, after: 80 }
                     })
                 );
 
@@ -412,14 +568,20 @@ const docxService = {
                 if (edu.gpa) {
                     sections.push(
                         new Paragraph({
-                            text: `GPA: ${edu.gpa}`,
-                            indent: { left: convertInchesToTwip(0.097) },
-                            spacing: { after: 0 }
+                            children: [
+                                new TextRun({
+                                    text: `GPA: ${edu.gpa}`,
+                                    size: 22,
+                                    font: 'Calibri',
+                                    color: '000000'
+                                })
+                            ],
+                            spacing: { after: 60 }
                         })
                     );
                 }
 
-                // Coursework
+                // Relevant Coursework
                 if (edu.relevantCoursework) {
                     sections.push(
                         new Paragraph({
@@ -427,13 +589,19 @@ const docxService = {
                                 new TextRun({
                                     text: 'Relevant Coursework: ',
                                     bold: true,
-                                    italics: true
+                                    italics: true,
+                                    size: 22,
+                                    font: 'Calibri',
+                                    color: '000000'
                                 }),
-                                new TextRun({ text: edu.relevantCoursework })
+                                new TextRun({
+                                    text: edu.relevantCoursework,
+                                    size: 22,
+                                    font: 'Calibri',
+                                    color: '000000'
+                                })
                             ],
-                            alignment: AlignmentType.JUSTIFY,
-                            indent: { left: convertInchesToTwip(0.097) },
-                            spacing: { after: 0 }
+                            spacing: { after: 80 }
                         })
                     );
                 }
@@ -441,17 +609,17 @@ const docxService = {
         }
 
         // ============================================
-        // CREATE DOCUMENT - EXACT MARGINS
+        // CREATE DOCUMENT WITH EXACT MARGINS
         // ============================================
         const doc = new Document({
             sections: [{
                 properties: {
                     page: {
                         margin: {
-                            top: convertInchesToTwip(0.4861),
-                            bottom: convertInchesToTwip(0.1944),
-                            left: convertInchesToTwip(0.4028),
-                            right: convertInchesToTwip(0.4028)
+                            top: convertInchesToTwip(0.5),
+                            bottom: convertInchesToTwip(0.5),
+                            left: convertInchesToTwip(0.5),
+                            right: convertInchesToTwip(0.5)
                         }
                     }
                 },
@@ -459,7 +627,7 @@ const docxService = {
             }]
         });
 
-        // Generate and save
+        // Generate and download
         const blob = await Packer.toBlob(doc);
         const fileName = `${personalInfo.firstName}_${personalInfo.lastName}_Resume.docx`;
         saveAs(blob, fileName);
