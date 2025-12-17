@@ -12,23 +12,33 @@ function Dashboard() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        console.log('Dashboard useEffect - authLoading:', authLoading, 'user:', user);
+
         // Only load master resume if user is authenticated
         if (user && !authLoading) {
+            console.log('Loading master resume for user:', user.uid);
             loadMasterResume();
         } else if (!authLoading && !user) {
             // User is not authenticated, redirect to login
+            console.log('No user, redirecting to login');
             navigate('/login', { replace: true });
         }
     }, [user, authLoading, navigate]);
 
     const loadMasterResume = async () => {
+        console.log('loadMasterResume called, user:', user);
+
         if (!user?.uid) {
+            console.log('No user UID, exiting');
             setLoading(false);
             return;
         }
 
+        console.log('Fetching master resume for:', user.uid);
+
         try {
             const resume = await masterResumeService.getMasterResume(user.uid);
+            console.log('Master resume loaded:', resume);
             setMasterResume(resume);
         } catch (error) {
             console.error('Error loading master resume:', error);
