@@ -7,7 +7,8 @@ import {
     BorderStyle,
     TabStopType,
     TabStopPosition,
-    convertInchesToTwip
+    convertInchesToTwip,
+    UnderlineType
 } from 'docx';
 import { saveAs } from 'file-saver';
 
@@ -17,7 +18,7 @@ const docxService = {
         const personalInfo = parsedData.personalInfo || {};
 
         // ============================================
-        // HEADER - Name (25pt, Regular, Center)
+        // HEADER - Name (22pt, Bold, Center)
         // ============================================
         const fullName = `${personalInfo.firstName || ''} ${personalInfo.lastName || ''}`.trim();
 
@@ -26,50 +27,111 @@ const docxService = {
                 children: [
                     new TextRun({
                         text: fullName,
-                        size: 50, // 25pt
-                        font: 'Georgia', // Closest to Charter BT
+                        bold: true,
+                        size: 44, // 22pt
+                        font: 'Garamond',
                         color: '000000'
                     })
                 ],
                 alignment: AlignmentType.CENTER,
-                spacing: { after: 120 } // 6pt after
+                spacing: { after: 120 }
             })
         );
 
         // ============================================
-        // CONTACT INFO LINE (10pt, Regular, Center)
+        // CONTACT INFO LINE (11pt, Center, Blue Links)
         // Format: City, State | email | phone | linkedin
         // ============================================
-        const contactParts = [];
+        const contactChildren = [];
 
+        // City, State
         if (personalInfo.address?.city && personalInfo.address?.state) {
-            contactParts.push(`${personalInfo.address.city}, ${personalInfo.address.state}`);
+            contactChildren.push(
+                new TextRun({
+                    text: `${personalInfo.address.city}, ${personalInfo.address.state}`,
+                    size: 22, // 11pt
+                    font: 'Garamond',
+                    color: '000000'
+                })
+            );
+            contactChildren.push(
+                new TextRun({
+                    text: ' | ',
+                    size: 22,
+                    font: 'Garamond',
+                    color: '000000'
+                })
+            );
         }
+
+        // Email (Blue, Underlined like hyperlink)
         if (personalInfo.email) {
-            contactParts.push(personalInfo.email);
+            contactChildren.push(
+                new TextRun({
+                    text: personalInfo.email,
+                    size: 22, // 11pt
+                    font: 'Garamond',
+                    color: '0563C1', // Standard Word blue
+                    underline: {
+                        type: UnderlineType.SINGLE
+                    }
+                })
+            );
+            contactChildren.push(
+                new TextRun({
+                    text: ' | ',
+                    size: 22,
+                    font: 'Garamond',
+                    color: '000000'
+                })
+            );
         }
+
+        // Phone
         if (personalInfo.phone) {
-            contactParts.push(personalInfo.phone);
+            contactChildren.push(
+                new TextRun({
+                    text: personalInfo.phone,
+                    size: 22,
+                    font: 'Garamond',
+                    color: '000000'
+                })
+            );
         }
+
+        // LinkedIn (Blue, Underlined)
         if (parsedData.onlinePresence?.linkedin) {
+            contactChildren.push(
+                new TextRun({
+                    text: ' | ',
+                    size: 22,
+                    font: 'Garamond',
+                    color: '000000'
+                })
+            );
+
             const linkedinUrl = parsedData.onlinePresence.linkedin;
             const linkedinDisplay = linkedinUrl.replace('https://', '').replace('http://', '');
-            contactParts.push(linkedinDisplay);
+
+            contactChildren.push(
+                new TextRun({
+                    text: linkedinDisplay,
+                    size: 22,
+                    font: 'Garamond',
+                    color: '0563C1', // Blue for links
+                    underline: {
+                        type: UnderlineType.SINGLE
+                    }
+                })
+            );
         }
 
-        if (contactParts.length > 0) {
+        if (contactChildren.length > 0) {
             sections.push(
                 new Paragraph({
-                    children: [
-                        new TextRun({
-                            text: contactParts.join(' | '),
-                            size: 20, // 10pt
-                            font: 'Georgia',
-                            color: '000000'
-                        })
-                    ],
+                    children: contactChildren,
                     alignment: AlignmentType.CENTER,
-                    spacing: { after: 120 } // 6pt after
+                    spacing: { after: 240 }
                 })
             );
         }
@@ -79,18 +141,18 @@ const docxService = {
         // ============================================
         if (resumeData.summary) {
             sections.push(
-                this.createSectionHeader('Summary'),
+                this.createSectionHeader('SUMMARY'),
                 new Paragraph({
                     children: [
                         new TextRun({
                             text: resumeData.summary,
-                            size: 20, // 10pt
-                            font: 'Georgia',
+                            size: 22, // 11pt
+                            font: 'Garamond',
                             color: '000000'
                         })
                     ],
-                    spacing: { after: 120 }, // 6pt after
-                    alignment: AlignmentType.JUSTIFIED
+                    spacing: { after: 240 },
+                    alignment: AlignmentType.LEFT
                 })
             );
         }
@@ -100,7 +162,7 @@ const docxService = {
         // Format: Category Name: skill1, skill2, skill3
         // ============================================
         if (resumeData.skills && Object.keys(resumeData.skills).length > 0) {
-            sections.push(this.createSectionHeader('Technical Skills'));
+            sections.push(this.createSectionHeader('TECHNICAL SKILLS'));
 
             Object.entries(resumeData.skills).forEach(([category, skills]) => {
                 sections.push(
@@ -109,74 +171,130 @@ const docxService = {
                             new TextRun({
                                 text: `${category}: `,
                                 bold: true,
-                                size: 20, // 10pt
-                                font: 'Georgia',
+                                size: 22, // 11pt
+                                font: 'Garamond',
                                 color: '000000'
                             }),
                             new TextRun({
                                 text: Array.isArray(skills) ? skills.join(', ') : skills,
-                                size: 20, // 10pt
-                                font: 'Georgia',
+                                size: 22, // 11pt
+                                font: 'Garamond',
                                 color: '000000'
                             })
                         ],
-                        spacing: { after: 40 } // Tight spacing
+                        spacing: { after: 120 }
                     })
                 );
             });
 
-            sections.push(new Paragraph({ text: '', spacing: { after: 120 } })); // 6pt after section
+            sections.push(new Paragraph({ text: '', spacing: { after: 120 } }));
         }
 
         // ============================================
         // PROFESSIONAL EXPERIENCE SECTION
+        // Two-line format:
+        // Line 1: Company (Bold) Left | Date (Bold) Right
+        // Line 2: Position (Italic) Left | Location Right
         // ============================================
         if (resumeData.experience && resumeData.experience.length > 0) {
-            sections.push(this.createSectionHeader('Professional Experience'));
+            sections.push(this.createSectionHeader('PROFESSIONAL EXPERIENCE'));
 
             resumeData.experience.forEach((exp, index) => {
-                // Line 1: Job Title (Bold), Company (Regular) | Date (Right-aligned)
+                // Line 1: Company (Bold) | Date (Bold, Right-aligned)
+                const companyChildren = [
+                    new TextRun({
+                        text: exp.company,
+                        bold: true,
+                        size: 22, // 11pt
+                        font: 'Garamond',
+                        color: '000000'
+                    })
+                ];
+
+                if (exp.period) {
+                    companyChildren.push(
+                        new TextRun({
+                            text: '\t', // Tab to right
+                        })
+                    );
+                    companyChildren.push(
+                        new TextRun({
+                            text: exp.period,
+                            bold: true,
+                            size: 22,
+                            font: 'Garamond',
+                            color: '000000'
+                        })
+                    );
+                }
+
                 sections.push(
                     new Paragraph({
-                        children: [
-                            new TextRun({
-                                text: exp.position,
-                                bold: true,
-                                size: 20, // 10pt
-                                font: 'Georgia',
-                                color: '000000'
-                            }),
-                            new TextRun({
-                                text: `, ${exp.company}`,
-                                size: 20, // 10pt
-                                font: 'Georgia',
-                                color: '000000'
-                            })
-                        ],
+                        children: companyChildren,
                         tabStops: [
                             {
                                 type: TabStopType.RIGHT,
-                                position: TabStopPosition.MAX
+                                position: convertInchesToTwip(7.5) // Right edge
                             }
                         ],
-                        spacing: { after: 40 }
+                        spacing: { after: 60 }
                     })
                 );
 
-                // Bullet Points - Left Indent 0.15", Hanging 0.25"
-                exp.achievements.forEach((achievement) => {
-                    // Bold key metrics/technologies within text
-                    const enhancedAchievement = this.boldifyKeywords(achievement);
+                // Line 2: Position (Italic) | Location (Right-aligned)
+                const positionChildren = [
+                    new TextRun({
+                        text: exp.position,
+                        italics: true,
+                        size: 22,
+                        font: 'Garamond',
+                        color: '000000'
+                    })
+                ];
 
+                if (exp.location) {
+                    positionChildren.push(
+                        new TextRun({
+                            text: '\t',
+                        })
+                    );
+                    positionChildren.push(
+                        new TextRun({
+                            text: exp.location,
+                            size: 22,
+                            font: 'Garamond',
+                            color: '000000'
+                        })
+                    );
+                }
+
+                sections.push(
+                    new Paragraph({
+                        children: positionChildren,
+                        tabStops: [
+                            {
+                                type: TabStopType.RIGHT,
+                                position: convertInchesToTwip(7.5)
+                            }
+                        ],
+                        spacing: { after: 120 }
+                    })
+                );
+
+                // Bullet Points - Standard indentation
+                exp.achievements.forEach((achievement) => {
                     sections.push(
                         new Paragraph({
-                            children: enhancedAchievement,
+                            children: [
+                                new TextRun({
+                                    text: achievement,
+                                    size: 22, // 11pt
+                                    font: 'Garamond',
+                                    color: '000000'
+                                })
+                            ],
                             bullet: { level: 0 },
-                            spacing: { after: 40 },
-                            indent: {
-                                left: convertInchesToTwip(0.15),
-                                hanging: convertInchesToTwip(0.25)
-                            }
+                            spacing: { after: 80 }
                         })
                     );
                 });
@@ -187,14 +305,14 @@ const docxService = {
                 }
             });
 
-            sections.push(new Paragraph({ text: '', spacing: { after: 120 } }));
+            sections.push(new Paragraph({ text: '', spacing: { after: 240 } }));
         }
 
         // ============================================
         // PROJECTS SECTION
         // ============================================
         if (resumeData.projects && resumeData.projects.length > 0) {
-            sections.push(this.createSectionHeader('Projects'));
+            sections.push(this.createSectionHeader('PROJECTS'));
 
             resumeData.projects.forEach((project, index) => {
                 // Project Name (Bold)
@@ -204,12 +322,12 @@ const docxService = {
                             new TextRun({
                                 text: project.name,
                                 bold: true,
-                                size: 20,
-                                font: 'Georgia',
+                                size: 22,
+                                font: 'Garamond',
                                 color: '000000'
                             })
                         ],
-                        spacing: { after: 40 }
+                        spacing: { after: 80 }
                     })
                 );
 
@@ -220,17 +338,13 @@ const docxService = {
                             children: [
                                 new TextRun({
                                     text: project.description,
-                                    size: 20,
-                                    font: 'Georgia',
+                                    size: 22,
+                                    font: 'Garamond',
                                     color: '000000'
                                 })
                             ],
                             bullet: { level: 0 },
-                            spacing: { after: 40 },
-                            indent: {
-                                left: convertInchesToTwip(0.15),
-                                hanging: convertInchesToTwip(0.25)
-                            }
+                            spacing: { after: 80 }
                         })
                     );
                 }
@@ -243,23 +357,19 @@ const docxService = {
                                 new TextRun({
                                     text: 'Technologies Used: ',
                                     bold: true,
-                                    size: 20,
-                                    font: 'Georgia',
+                                    size: 22,
+                                    font: 'Garamond',
                                     color: '000000'
                                 }),
                                 new TextRun({
                                     text: project.technologies.join(', '),
-                                    size: 20,
-                                    font: 'Georgia',
+                                    size: 22,
+                                    font: 'Garamond',
                                     color: '000000'
                                 })
                             ],
                             bullet: { level: 0 },
-                            spacing: { after: 40 },
-                            indent: {
-                                left: convertInchesToTwip(0.15),
-                                hanging: convertInchesToTwip(0.25)
-                            }
+                            spacing: { after: 80 }
                         })
                     );
                 }
@@ -269,14 +379,14 @@ const docxService = {
                 }
             });
 
-            sections.push(new Paragraph({ text: '', spacing: { after: 120 } }));
+            sections.push(new Paragraph({ text: '', spacing: { after: 240 } }));
         }
 
         // ============================================
         // CERTIFICATIONS SECTION
         // ============================================
         if (resumeData.certifications && resumeData.certifications.length > 0) {
-            sections.push(this.createSectionHeader('Certifications'));
+            sections.push(this.createSectionHeader('CERTIFICATIONS'));
 
             resumeData.certifications.forEach(cert => {
                 const certText = cert.date
@@ -288,53 +398,80 @@ const docxService = {
                         children: [
                             new TextRun({
                                 text: certText,
-                                size: 20,
-                                font: 'Georgia',
+                                size: 22,
+                                font: 'Garamond',
                                 color: '000000'
                             })
                         ],
-                        spacing: { after: 40 }
+                        spacing: { after: 120 }
                     })
                 );
             });
 
-            sections.push(new Paragraph({ text: '', spacing: { after: 120 } }));
+            sections.push(new Paragraph({ text: '', spacing: { after: 240 } }));
         }
 
         // ============================================
         // EDUCATION SECTION
         // ============================================
         if (resumeData.education && resumeData.education.length > 0) {
-            sections.push(this.createSectionHeader('Education'));
+            sections.push(this.createSectionHeader('EDUCATION'));
 
             resumeData.education.forEach(edu => {
-                // School (Bold), Degree
+                // Line 1: School (Bold) | Date (Bold, Right)
+                const schoolChildren = [
+                    new TextRun({
+                        text: edu.school,
+                        bold: true,
+                        size: 22,
+                        font: 'Garamond',
+                        color: '000000'
+                    })
+                ];
+
+                if (edu.year) {
+                    schoolChildren.push(new TextRun({ text: '\t' }));
+                    schoolChildren.push(
+                        new TextRun({
+                            text: edu.year,
+                            bold: true,
+                            size: 22,
+                            font: 'Garamond',
+                            color: '000000'
+                        })
+                    );
+                }
+
+                sections.push(
+                    new Paragraph({
+                        children: schoolChildren,
+                        tabStops: [
+                            {
+                                type: TabStopType.RIGHT,
+                                position: convertInchesToTwip(7.5)
+                            }
+                        ],
+                        spacing: { after: 60 }
+                    })
+                );
+
+                // Line 2: Degree (Italic)
+                const degreeText = edu.field
+                    ? `${edu.degree} in ${edu.field}`
+                    : edu.degree;
+
                 sections.push(
                     new Paragraph({
                         children: [
                             new TextRun({
-                                text: `${edu.school}`,
-                                bold: true,
-                                size: 20,
-                                font: 'Georgia',
+                                text: degreeText,
+                                italics: true,
+                                size: 22,
+                                font: 'Garamond',
                                 color: '000000'
-                            }),
-                            new TextRun({
-                                text: `, ${edu.degree}`,
-                                size: 20,
-                                font: 'Georgia',
-                                color: '000000'
-                            }),
-                            ...(edu.field ? [
-                                new TextRun({
-                                    text: ` in ${edu.field}`,
-                                    size: 20,
-                                    font: 'Georgia',
-                                    color: '000000'
-                                })
-                            ] : [])
+                            })
                         ],
-                        spacing: { after: 40 }
+                        spacing: { after: 80 }
                     })
                 );
 
@@ -344,25 +481,15 @@ const docxService = {
                         new Paragraph({
                             children: [
                                 new TextRun({
-                                    text: `GPA: `,
+                                    text: `GPA: ${edu.gpa}`,
                                     bold: true,
-                                    size: 20,
-                                    font: 'Georgia',
-                                    color: '000000'
-                                }),
-                                new TextRun({
-                                    text: edu.gpa,
-                                    size: 20,
-                                    font: 'Georgia',
+                                    size: 22,
+                                    font: 'Garamond',
                                     color: '000000'
                                 })
                             ],
                             bullet: { level: 0 },
-                            spacing: { after: 40 },
-                            indent: {
-                                left: convertInchesToTwip(0.15),
-                                hanging: convertInchesToTwip(0.25)
-                            }
+                            spacing: { after: 80 }
                         })
                     );
                 }
@@ -375,23 +502,19 @@ const docxService = {
                                 new TextRun({
                                     text: `Relevant Coursework: `,
                                     bold: true,
-                                    size: 20,
-                                    font: 'Georgia',
+                                    size: 22,
+                                    font: 'Garamond',
                                     color: '000000'
                                 }),
                                 new TextRun({
                                     text: edu.relevantCoursework,
-                                    size: 20,
-                                    font: 'Georgia',
+                                    size: 22,
+                                    font: 'Garamond',
                                     color: '000000'
                                 })
                             ],
                             bullet: { level: 0 },
-                            spacing: { after: 40 },
-                            indent: {
-                                left: convertInchesToTwip(0.15),
-                                hanging: convertInchesToTwip(0.25)
-                            }
+                            spacing: { after: 80 }
                         })
                     );
                 }
@@ -406,10 +529,10 @@ const docxService = {
                 properties: {
                     page: {
                         margin: {
-                            top: convertInchesToTwip(0.8),   // 0.8"
-                            bottom: convertInchesToTwip(1.0), // 1.0"
-                            left: convertInchesToTwip(0.75),  // 0.75"
-                            right: convertInchesToTwip(0.75)  // 0.75"
+                            top: convertInchesToTwip(0.5),   // 0.5" all sides
+                            bottom: convertInchesToTwip(0.5),
+                            left: convertInchesToTwip(0.5),
+                            right: convertInchesToTwip(0.5)
                         }
                     }
                 },
@@ -423,86 +546,20 @@ const docxService = {
         saveAs(blob, fileName);
     },
 
-    // Create Section Header (12pt, Bold, Bottom Border)
+    // Create Section Header (12pt, Bold, ALL CAPS)
     createSectionHeader(text) {
         return new Paragraph({
             children: [
                 new TextRun({
-                    text: text,
+                    text: text.toUpperCase(),
                     bold: true,
                     size: 24, // 12pt
-                    font: 'Georgia',
+                    font: 'Garamond',
                     color: '000000'
                 })
             ],
-            border: {
-                bottom: {
-                    color: '000000',
-                    space: 1,
-                    style: BorderStyle.SINGLE,
-                    size: 6
-                }
-            },
-            spacing: { before: 120, after: 60 } // 6pt before, 3pt after
+            spacing: { before: 240, after: 120 }
         });
-    },
-
-    // Bold key metrics and technologies in achievement text
-    boldifyKeywords(text) {
-        const keywords = [
-            'Python', 'SQL', 'PySpark', 'Databricks', 'BigQuery', 'Tableau', 'Power BI',
-            'AWS', 'Azure', 'GCP', 'Pandas', 'NumPy', 'TensorFlow', 'scikit-learn',
-            'BERT', 'Machine Learning', 'ML', 'Data Science', 'ETL', 'GitHub'
-        ];
-
-        const parts = [];
-        let remaining = text;
-
-        // Simple implementation: look for numbers with % or $ or M+
-        const metricRegex = /(\d+[\d,]*\+?\s*(?:%|M\+|hours?|TB|GB|records?))/gi;
-
-        let lastIndex = 0;
-        let match;
-
-        while ((match = metricRegex.exec(text)) !== null) {
-            // Add text before match
-            if (match.index > lastIndex) {
-                parts.push(new TextRun({
-                    text: text.substring(lastIndex, match.index),
-                    size: 20,
-                    font: 'Georgia',
-                    color: '000000'
-                }));
-            }
-
-            // Add bold metric
-            parts.push(new TextRun({
-                text: match[0],
-                bold: true,
-                size: 20,
-                font: 'Georgia',
-                color: '000000'
-            }));
-
-            lastIndex = match.index + match[0].length;
-        }
-
-        // Add remaining text
-        if (lastIndex < text.length) {
-            parts.push(new TextRun({
-                text: text.substring(lastIndex),
-                size: 20,
-                font: 'Georgia',
-                color: '000000'
-            }));
-        }
-
-        return parts.length > 0 ? parts : [new TextRun({
-            text: text,
-            size: 20,
-            font: 'Georgia',
-            color: '000000'
-        })];
     }
 };
 
