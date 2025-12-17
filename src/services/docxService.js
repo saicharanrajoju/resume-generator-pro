@@ -1,4 +1,4 @@
-import { Document, Packer, Paragraph, TextRun, AlignmentType, TabStopType, convertInchesToTwip, HeadingLevel, Hyperlink } from 'docx';
+import { Document, Packer, Paragraph, TextRun, AlignmentType, TabStopType, convertInchesToTwip, HeadingLevel, ExternalHyperlink } from 'docx';
 import { saveAs } from 'file-saver';
 
 /**
@@ -64,8 +64,17 @@ const docxService = {
         // Email (as hyperlink)
         if (personalInfo.email) {
             contactChildren.push(
-                new Hyperlink({
-                    text: personalInfo.email,
+                new ExternalHyperlink({
+                    children: [
+                        new TextRun({
+                            text: personalInfo.email,
+                            style: "Hyperlink",
+                            color: "0563C1",
+                            underline: {
+                                type: "single"
+                            }
+                        })
+                    ],
                     link: `mailto:${personalInfo.email}`
                 })
             );
@@ -79,8 +88,17 @@ const docxService = {
 
             contactChildren.push(new TextRun({ text: 'LinkedIn: ' }));
             contactChildren.push(
-                new Hyperlink({
-                    text: linkedinDisplay,
+                new ExternalHyperlink({
+                    children: [
+                        new TextRun({
+                            text: linkedinDisplay,
+                            style: "Hyperlink",
+                            color: "0563C1",
+                            underline: {
+                                type: "single"
+                            }
+                        })
+                    ],
                     link: linkedinUrl
                 })
             );
