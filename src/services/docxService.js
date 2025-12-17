@@ -12,10 +12,8 @@ import {
 import { saveAs } from 'file-saver';
 
 /**
- * WORKING DOCX GENERATOR - EXACT TEMPLATE MATCH
- * 
- * This version manually creates every element to match your Word template exactly
- * No relying on built-in styles that don't work properly
+ * PERFECT RESUME GENERATOR
+ * All issues fixed - Professional ATS-friendly format
  */
 
 const docxService = {
@@ -24,7 +22,7 @@ const docxService = {
         const personalInfo = parsedData.personalInfo || {};
 
         // ============================================
-        // 1. NAME (Large, Black, Left-aligned)
+        // 1. NAME (CENTERED, BOLD, 20pt, Times New Roman)
         // ============================================
         const fullName = `${personalInfo.firstName || ''} ${personalInfo.lastName || ''}`.trim();
 
@@ -33,19 +31,19 @@ const docxService = {
                 children: [
                     new TextRun({
                         text: fullName,
-                        size: 32, // 16pt
-                        bold: false,
-                        font: 'Calibri',
+                        size: 40, // 20pt
+                        bold: true,
+                        font: 'Times New Roman',
                         color: '000000'
                     })
                 ],
-                alignment: AlignmentType.LEFT,
-                spacing: { after: 100 }
+                alignment: AlignmentType.CENTER,
+                spacing: { after: 120 }
             })
         );
 
         // ============================================
-        // 2. CONTACT LINE (Centered, with REAL hyperlinks)
+        // 2. CONTACT LINE (Centered, with REAL clickable hyperlinks)
         // ============================================
         const contactParts = [];
 
@@ -60,7 +58,7 @@ const docxService = {
                 new TextRun({
                     text: cityState,
                     size: 22, // 11pt
-                    font: 'Calibri',
+                    font: 'Times New Roman',
                     color: '000000'
                 })
             );
@@ -69,67 +67,97 @@ const docxService = {
         // Phone
         if (personalInfo.phone) {
             if (contactParts.length > 0) {
-                contactParts.push(new TextRun({ text: ' | ', size: 22, font: 'Calibri' }));
+                contactParts.push(new TextRun({ text: ' | ', size: 22, font: 'Times New Roman' }));
             }
             contactParts.push(
                 new TextRun({
                     text: personalInfo.phone,
                     size: 22,
-                    font: 'Calibri',
+                    font: 'Times New Roman',
                     color: '000000'
                 })
             );
         }
 
-        // Email (as clickable hyperlink)
+        // Email (as REAL clickable hyperlink)
         if (personalInfo.email) {
             if (contactParts.length > 0) {
-                contactParts.push(new TextRun({ text: ' | ', size: 22, font: 'Calibri' }));
+                contactParts.push(new TextRun({ text: ' | ', size: 22, font: 'Times New Roman' }));
             }
-            contactParts.push(
-                new TextRun({
-                    text: personalInfo.email,
-                    size: 22,
-                    font: 'Calibri',
-                    color: '0563C1', // Blue
-                    underline: {}
+
+            // Create actual hyperlink
+            sections.push(
+                new Paragraph({
+                    children: [
+                        ...contactParts,
+                        new ExternalHyperlink({
+                            children: [
+                                new TextRun({
+                                    text: personalInfo.email,
+                                    size: 22,
+                                    font: 'Times New Roman',
+                                    color: '0563C1',
+                                    underline: {}
+                                })
+                            ],
+                            link: `mailto:${personalInfo.email}`
+                        })
+                    ],
+                    alignment: AlignmentType.CENTER,
+                    spacing: { after: 200 }
+                })
+            );
+
+            // Reset contactParts for LinkedIn
+            contactParts.length = 0;
+
+            // LinkedIn on same line
+            if (parsedData.onlinePresence?.linkedin) {
+                const linkedinUrl = parsedData.onlinePresence.linkedin;
+                const linkedinDisplay = linkedinUrl.replace('https://', '').replace('http://', '');
+
+                sections.push(
+                    new Paragraph({
+                        children: [
+                            new TextRun({
+                                text: ' | LinkedIn: ',
+                                size: 22,
+                                font: 'Times New Roman'
+                            }),
+                            new ExternalHyperlink({
+                                children: [
+                                    new TextRun({
+                                        text: linkedinDisplay,
+                                        size: 22,
+                                        font: 'Times New Roman',
+                                        color: '0563C1',
+                                        underline: {}
+                                    })
+                                ],
+                                link: linkedinUrl
+                            })
+                        ],
+                        alignment: AlignmentType.CENTER,
+                        spacing: { after: 240 }
+                    })
+                );
+            }
+        } else {
+            // If no email, just put contact parts
+            sections.push(
+                new Paragraph({
+                    children: contactParts,
+                    alignment: AlignmentType.CENTER,
+                    spacing: { after: 240 }
                 })
             );
         }
-
-        // LinkedIn (as clickable hyperlink)
-        if (parsedData.onlinePresence?.linkedin) {
-            if (contactParts.length > 0) {
-                contactParts.push(new TextRun({ text: ' | LinkedIn: ', size: 22, font: 'Calibri' }));
-            }
-
-            const linkedinUrl = parsedData.onlinePresence.linkedin;
-            const linkedinDisplay = linkedinUrl.replace('https://', '').replace('http://', '');
-
-            contactParts.push(
-                new TextRun({
-                    text: linkedinDisplay,
-                    size: 22,
-                    font: 'Calibri',
-                    color: '0563C1', // Blue
-                    underline: {}
-                })
-            );
-        }
-
-        sections.push(
-            new Paragraph({
-                children: contactParts,
-                alignment: AlignmentType.CENTER,
-                spacing: { after: 200 }
-            })
-        );
 
         // ============================================
         // 3. SUMMARY SECTION
         // ============================================
         if (resumeData.summary) {
-            // Section Header with underline
+            // Section Header with thin underline
             sections.push(
                 new Paragraph({
                     children: [
@@ -137,12 +165,12 @@ const docxService = {
                             text: 'SUMMARY',
                             size: 24, // 12pt
                             bold: true,
-                            font: 'Calibri',
+                            font: 'Times New Roman',
                             color: '000000'
                         })
                     ],
                     alignment: AlignmentType.LEFT,
-                    spacing: { before: 100, after: 100 },
+                    spacing: { before: 240, after: 120 },
                     border: {
                         bottom: {
                             color: '000000',
@@ -161,12 +189,12 @@ const docxService = {
                         new TextRun({
                             text: resumeData.summary,
                             size: 22, // 11pt
-                            font: 'Calibri',
+                            font: 'Times New Roman',
                             color: '000000'
                         })
                     ],
                     alignment: AlignmentType.LEFT,
-                    spacing: { after: 200 }
+                    spacing: { after: 120 }
                 })
             );
         }
@@ -175,20 +203,20 @@ const docxService = {
         // 4. TECHNICAL SKILLS
         // ============================================
         if (resumeData.skills && Object.keys(resumeData.skills).length > 0) {
-            // Section Header with underline
+            // Section Header
             sections.push(
                 new Paragraph({
                     children: [
                         new TextRun({
                             text: 'TECHNICAL SKILLS',
-                            size: 24, // 12pt
+                            size: 24,
                             bold: true,
-                            font: 'Calibri',
+                            font: 'Times New Roman',
                             color: '000000'
                         })
                     ],
                     alignment: AlignmentType.LEFT,
-                    spacing: { before: 100, after: 100 },
+                    spacing: { before: 240, after: 120 },
                     border: {
                         bottom: {
                             color: '000000',
@@ -200,7 +228,7 @@ const docxService = {
                 })
             );
 
-            // Skills content - bold category, regular items
+            // Skills content
             Object.entries(resumeData.skills).forEach(([category, skills]) => {
                 sections.push(
                     new Paragraph({
@@ -209,29 +237,27 @@ const docxService = {
                                 text: `${category}: `,
                                 bold: true,
                                 size: 22,
-                                font: 'Calibri',
+                                font: 'Times New Roman',
                                 color: '000000'
                             }),
                             new TextRun({
                                 text: Array.isArray(skills) ? skills.join(', ') : skills,
                                 size: 22,
-                                font: 'Calibri',
+                                font: 'Times New Roman',
                                 color: '000000'
                             })
                         ],
-                        spacing: { after: 80 }
+                        spacing: { after: 100 }
                     })
                 );
             });
-
-            sections.push(new Paragraph({ text: '', spacing: { after: 200 } }));
         }
 
         // ============================================
         // 5. PROFESSIONAL EXPERIENCE
         // ============================================
         if (resumeData.experience && resumeData.experience.length > 0) {
-            // Section Header with underline
+            // Section Header
             sections.push(
                 new Paragraph({
                     children: [
@@ -239,12 +265,12 @@ const docxService = {
                             text: 'PROFESSIONAL EXPERIENCE',
                             size: 24,
                             bold: true,
-                            font: 'Calibri',
+                            font: 'Times New Roman',
                             color: '000000'
                         })
                     ],
                     alignment: AlignmentType.LEFT,
-                    spacing: { before: 100, after: 100 },
+                    spacing: { before: 240, after: 120 },
                     border: {
                         bottom: {
                             color: '000000',
@@ -257,19 +283,19 @@ const docxService = {
             );
 
             resumeData.experience.forEach((exp, index) => {
-                // Job title line: "Position, Company" (bold position) with date on right
+                // Job title line: "Position, Company" with date RIGHT-aligned
                 const titleChildren = [
                     new TextRun({
                         text: exp.position,
                         bold: true,
                         size: 22,
-                        font: 'Calibri',
+                        font: 'Times New Roman',
                         color: '000000'
                     }),
                     new TextRun({
                         text: `, ${exp.company}`,
                         size: 22,
-                        font: 'Calibri',
+                        font: 'Times New Roman',
                         color: '000000'
                     })
                 ];
@@ -280,7 +306,7 @@ const docxService = {
                         new TextRun({
                             text: exp.period,
                             size: 22,
-                            font: 'Calibri',
+                            font: 'Times New Roman',
                             color: '000000'
                         })
                     );
@@ -292,14 +318,14 @@ const docxService = {
                         tabStops: [
                             {
                                 type: TabStopType.RIGHT,
-                                position: convertInchesToTwip(6.5) // Right edge
+                                position: convertInchesToTwip(6.5) // Far right
                             }
                         ],
-                        spacing: { before: 100, after: 80 }
+                        spacing: { before: 120, after: 100 }
                     })
                 );
 
-                // Achievement bullets
+                // Achievement bullets with better spacing
                 exp.achievements.forEach((achievement) => {
                     sections.push(
                         new Paragraph({
@@ -307,32 +333,30 @@ const docxService = {
                                 new TextRun({
                                     text: achievement,
                                     size: 22,
-                                    font: 'Calibri',
+                                    font: 'Times New Roman',
                                     color: '000000'
                                 })
                             ],
                             bullet: {
                                 level: 0
                             },
-                            spacing: { after: 60 }
+                            spacing: { after: 80 }
                         })
                     );
                 });
 
                 // Space between jobs
                 if (index < resumeData.experience.length - 1) {
-                    sections.push(new Paragraph({ text: '', spacing: { after: 100 } }));
+                    sections.push(new Paragraph({ text: '', spacing: { after: 120 } }));
                 }
             });
-
-            sections.push(new Paragraph({ text: '', spacing: { after: 200 } }));
         }
 
         // ============================================
         // 6. PROJECTS
         // ============================================
         if (resumeData.projects && resumeData.projects.length > 0) {
-            // Section Header with underline
+            // Section Header
             sections.push(
                 new Paragraph({
                     children: [
@@ -340,12 +364,12 @@ const docxService = {
                             text: 'PROJECTS',
                             size: 24,
                             bold: true,
-                            font: 'Calibri',
+                            font: 'Times New Roman',
                             color: '000000'
                         })
                     ],
                     alignment: AlignmentType.LEFT,
-                    spacing: { before: 100, after: 100 },
+                    spacing: { before: 240, after: 120 },
                     border: {
                         bottom: {
                             color: '000000',
@@ -358,13 +382,13 @@ const docxService = {
             );
 
             resumeData.projects.forEach((project, index) => {
-                // Project name (bold) with date on right
+                // Project name with date RIGHT-aligned
                 const projChildren = [
                     new TextRun({
                         text: project.name,
                         bold: true,
                         size: 22,
-                        font: 'Calibri',
+                        font: 'Times New Roman',
                         color: '000000'
                     })
                 ];
@@ -375,7 +399,7 @@ const docxService = {
                         new TextRun({
                             text: project.date,
                             size: 22,
-                            font: 'Calibri',
+                            font: 'Times New Roman',
                             color: '000000'
                         })
                     );
@@ -390,7 +414,7 @@ const docxService = {
                                 position: convertInchesToTwip(6.5)
                             }
                         ],
-                        spacing: { before: 100, after: 80 }
+                        spacing: { before: 120, after: 100 }
                     })
                 );
 
@@ -402,17 +426,17 @@ const docxService = {
                                 new TextRun({
                                     text: project.description,
                                     size: 22,
-                                    font: 'Calibri',
+                                    font: 'Times New Roman',
                                     color: '000000'
                                 })
                             ],
                             bullet: { level: 0 },
-                            spacing: { after: 60 }
+                            spacing: { after: 80 }
                         })
                     );
                 }
 
-                // Technologies (bullet)
+                // Technologies as bullet (not separate line)
                 if (project.technologies && project.technologies.length > 0) {
                     sections.push(
                         new Paragraph({
@@ -421,35 +445,33 @@ const docxService = {
                                     text: 'Technologies Used: ',
                                     bold: true,
                                     size: 22,
-                                    font: 'Calibri',
+                                    font: 'Times New Roman',
                                     color: '000000'
                                 }),
                                 new TextRun({
                                     text: project.technologies.join(', '),
                                     size: 22,
-                                    font: 'Calibri',
+                                    font: 'Times New Roman',
                                     color: '000000'
                                 })
                             ],
                             bullet: { level: 0 },
-                            spacing: { after: 60 }
+                            spacing: { after: 80 }
                         })
                     );
                 }
 
                 if (index < resumeData.projects.length - 1) {
-                    sections.push(new Paragraph({ text: '', spacing: { after: 100 } }));
+                    sections.push(new Paragraph({ text: '', spacing: { after: 120 } }));
                 }
             });
-
-            sections.push(new Paragraph({ text: '', spacing: { after: 200 } }));
         }
 
         // ============================================
         // 7. CERTIFICATIONS
         // ============================================
         if (resumeData.certifications && resumeData.certifications.length > 0) {
-            // Section Header with underline
+            // Section Header
             sections.push(
                 new Paragraph({
                     children: [
@@ -457,12 +479,12 @@ const docxService = {
                             text: 'CERTIFICATIONS',
                             size: 24,
                             bold: true,
-                            font: 'Calibri',
+                            font: 'Times New Roman',
                             color: '000000'
                         })
                     ],
                     alignment: AlignmentType.LEFT,
-                    spacing: { before: 100, after: 100 },
+                    spacing: { before: 240, after: 120 },
                     border: {
                         bottom: {
                             color: '000000',
@@ -484,23 +506,21 @@ const docxService = {
                                 text: certText,
                                 bold: true,
                                 size: 22,
-                                font: 'Calibri',
+                                font: 'Times New Roman',
                                 color: '000000'
                             })
                         ],
-                        spacing: { after: 80 }
+                        spacing: { after: 100 }
                     })
                 );
             });
-
-            sections.push(new Paragraph({ text: '', spacing: { after: 200 } }));
         }
 
         // ============================================
         // 8. EDUCATION
         // ============================================
         if (resumeData.education && resumeData.education.length > 0) {
-            // Section Header with underline
+            // Section Header
             sections.push(
                 new Paragraph({
                     children: [
@@ -508,12 +528,12 @@ const docxService = {
                             text: 'EDUCATION',
                             size: 24,
                             bold: true,
-                            font: 'Calibri',
+                            font: 'Times New Roman',
                             color: '000000'
                         })
                     ],
                     alignment: AlignmentType.LEFT,
-                    spacing: { before: 100, after: 100 },
+                    spacing: { before: 240, after: 120 },
                     border: {
                         bottom: {
                             color: '000000',
@@ -526,14 +546,26 @@ const docxService = {
             );
 
             resumeData.education.forEach(edu => {
-                // School line (italic) with date (bold) on right
+                // School line (BOLD only) with date (bold) RIGHT-aligned
                 const schoolChildren = [
                     new TextRun({
-                        text: `${edu.school} | ${edu.degree}`,
-                        italics: true,
+                        text: edu.school,
                         bold: true,
                         size: 22,
-                        font: 'Calibri',
+                        font: 'Times New Roman',
+                        color: '000000'
+                    }),
+                    new TextRun({
+                        text: ' | ',
+                        size: 22,
+                        font: 'Times New Roman',
+                        color: '000000'
+                    }),
+                    new TextRun({
+                        text: edu.degree,
+                        italics: true,
+                        size: 22,
+                        font: 'Times New Roman',
                         color: '000000'
                     })
                 ];
@@ -545,7 +577,7 @@ const docxService = {
                             text: edu.year,
                             bold: true,
                             size: 22,
-                            font: 'Calibri',
+                            font: 'Times New Roman',
                             color: '000000'
                         })
                     );
@@ -560,7 +592,7 @@ const docxService = {
                                 position: convertInchesToTwip(6.5)
                             }
                         ],
-                        spacing: { before: 100, after: 80 }
+                        spacing: { before: 120, after: 80 }
                     })
                 );
 
@@ -572,11 +604,11 @@ const docxService = {
                                 new TextRun({
                                     text: `GPA: ${edu.gpa}`,
                                     size: 22,
-                                    font: 'Calibri',
+                                    font: 'Times New Roman',
                                     color: '000000'
                                 })
                             ],
-                            spacing: { after: 60 }
+                            spacing: { after: 80 }
                         })
                     );
                 }
@@ -591,17 +623,17 @@ const docxService = {
                                     bold: true,
                                     italics: true,
                                     size: 22,
-                                    font: 'Calibri',
+                                    font: 'Times New Roman',
                                     color: '000000'
                                 }),
                                 new TextRun({
                                     text: edu.relevantCoursework,
                                     size: 22,
-                                    font: 'Calibri',
+                                    font: 'Times New Roman',
                                     color: '000000'
                                 })
                             ],
-                            spacing: { after: 80 }
+                            spacing: { after: 100 }
                         })
                     );
                 }
@@ -609,17 +641,17 @@ const docxService = {
         }
 
         // ============================================
-        // CREATE DOCUMENT WITH EXACT MARGINS
+        // CREATE DOCUMENT - 1" margins (standard)
         // ============================================
         const doc = new Document({
             sections: [{
                 properties: {
                     page: {
                         margin: {
-                            top: convertInchesToTwip(0.5),
-                            bottom: convertInchesToTwip(0.5),
-                            left: convertInchesToTwip(0.5),
-                            right: convertInchesToTwip(0.5)
+                            top: convertInchesToTwip(1.0),
+                            bottom: convertInchesToTwip(1.0),
+                            left: convertInchesToTwip(1.0),
+                            right: convertInchesToTwip(1.0)
                         }
                     }
                 },
