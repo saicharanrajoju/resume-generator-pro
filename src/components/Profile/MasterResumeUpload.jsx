@@ -77,70 +77,77 @@ function MasterResumeUpload({ existingResume, onComplete }) {
 
     const getMissingProfileData = (resumeData) => {
         const resume = resumeData || masterResume;
-        if (!resume) return [];
+        if (!resume || !resume.parsedData) return [];
 
         const missing = [];
 
-        // Check all personal info fields
-        if (!resume.parsedData.personalInfo?.firstName) {
+        // Personal Info - Check each field individually
+        if (!resume.parsedData.personalInfo?.firstName?.trim()) {
             missing.push('firstName');
         }
-        if (!resume.parsedData.personalInfo?.lastName) {
+        if (!resume.parsedData.personalInfo?.lastName?.trim()) {
             missing.push('lastName');
         }
-        if (!resume.parsedData.personalInfo?.email) {
+        if (!resume.parsedData.personalInfo?.email?.trim()) {
             missing.push('email');
         }
-        if (!resume.parsedData.personalInfo?.phone) {
+        if (!resume.parsedData.personalInfo?.phone?.trim()) {
             missing.push('phone');
         }
-        if (!resume.parsedData.personalInfo?.address?.city) {
+        if (!resume.parsedData.personalInfo?.address?.city?.trim()) {
             missing.push('city');
         }
-        if (!resume.parsedData.personalInfo?.address?.state) {
+        if (!resume.parsedData.personalInfo?.address?.state?.trim()) {
             missing.push('state');
         }
-        if (!resume.parsedData.personalInfo?.address?.zipCode) {
+        if (!resume.parsedData.personalInfo?.address?.zipCode?.trim()) {
             missing.push('zipcode');
         }
 
-        // Check education fields
+        // LinkedIn - Check if exists and is optimized
+        const linkedin = resume.parsedData.onlinePresence?.linkedin;
+        if (!linkedin || linkedin.length > 40) {
+            missing.push('linkedin');
+        }
+
+        // Education - Check EACH degree individually
         if (resume.parsedData.education) {
             resume.parsedData.education.forEach((edu, index) => {
-                if (!edu.field) {
+                if (!edu.field?.trim()) {
                     missing.push(`education_field_${index}`);
                 }
-                if (!edu.gpa) {
+                if (!edu.gpa?.trim()) {
                     missing.push(`education_gpa_${index}`);
                 }
             });
         }
 
-        // Check work experience locations and periods
+        // Work Experience - Check EACH job individually
         if (resume.parsedData.workExperience) {
             resume.parsedData.workExperience.forEach((job, index) => {
-                if (!job.location) {
+                if (!job.location?.trim()) {
                     missing.push(`job_location_${index}`);
                 }
-                if (!job.period) {
+                if (!job.period?.trim()) {
                     missing.push(`job_period_${index}`);
+                }
+                // Also check critical fields like company and position
+                if (!job.company?.trim()) {
+                    missing.push(`job_company_${index}`);
+                }
+                if (!job.position?.trim()) {
+                    missing.push(`job_position_${index}`);
                 }
             });
         }
 
-        // Check project dates
+        // Projects - Check EACH project individually
         if (resume.parsedData.projects) {
             resume.parsedData.projects.forEach((project, index) => {
-                if (!project.date) {
+                if (!project.date?.trim()) {
                     missing.push(`project_date_${index}`);
                 }
             });
-        }
-
-        // Check LinkedIn optimization
-        const linkedin = resume.parsedData.onlinePresence?.linkedin;
-        if (!linkedin || linkedin.length > 40) {
-            missing.push('linkedin');
         }
 
         return missing;
@@ -217,57 +224,31 @@ function MasterResumeUpload({ existingResume, onComplete }) {
     };
 
     const calculateCompleteness = () => {
-        if (!masterResume) return 0;
+        if (!masterResume || !masterResume.parsedData) return 0;
 
-        let score = 0;
-        let total = 0;
+        const missing = getMissingProfileData();
 
-        // Personal Info (7 fields - most important)
-        const personalFields = [
-            masterResume.parsedData.personalInfo?.firstName,
-            masterResume.parsedData.personalInfo?.lastName,
-            masterResume.parsedData.personalInfo?.email,
-            masterResume.parsedData.personalInfo?.phone,
-            masterResume.parsedData.personalInfo?.address?.city,
-            masterResume.parsedData.personalInfo?.address?.state,
-            masterResume.parsedData.personalInfo?.address?.zipCode
-        ];
+        // Calculate total possible fields
+        let totalFields = 7; // Personal info basic fields
+        totalFields += 1; // LinkedIn
 
-        personalFields.forEach(field => {
-            total++;
-            if (field) score++;
-        });
-
-        // Education fields (field and GPA for each degree)
+        // Add education fields (field + gpa for each)
         if (masterResume.parsedData.education) {
-            masterResume.parsedData.education.forEach(edu => {
-                total += 2; // field + gpa
-                if (edu.field) score++;
-                if (edu.gpa) score++;
-            });
+            totalFields += masterResume.parsedData.education.length * 2;
         }
 
-        // Work Experience (location and period for each job)
+        // Add work experience fields (location + period + company + position for each)
         if (masterResume.parsedData.workExperience) {
-            masterResume.parsedData.workExperience.forEach(job => {
-                total += 2; // location + period
-                if (job.location) score++;
-                if (job.period) score++;
-            });
+            totalFields += masterResume.parsedData.workExperience.length * 4;
         }
 
-        // Projects (date for each project)
+        // Add project fields (date for each)
         if (masterResume.parsedData.projects) {
-            total += masterResume.parsedData.projects.length;
-            score += masterResume.parsedData.projects.filter(p => p.date).length;
+            totalFields += masterResume.parsedData.projects.length;
         }
 
-        // LinkedIn
-        total++;
-        const linkedin = masterResume.parsedData.onlinePresence?.linkedin;
-        if (linkedin && linkedin.length <= 40) score++;
-
-        return total > 0 ? Math.round((score / total) * 100) : 0;
+        const filledFields = totalFields - missing.length;
+        return totalFields > 0 ? Math.round((filledFields / totalFields) * 100) : 0;
     };
 
     const hasAnySelected = fillZipcode || fillEducation || fillLinkedIn;
@@ -381,20 +362,57 @@ function MasterResumeUpload({ existingResume, onComplete }) {
                                         Missing {getMissingProfileData().length} item(s):
                                     </p>
                                     <ul className="text-xs text-yellow-700 list-disc list-inside space-y-1">
-                                        {!masterResume.parsedData.personalInfo?.firstName && <li>First Name</li>}
-                                        {!masterResume.parsedData.personalInfo?.lastName && <li>Last Name</li>}
-                                        {!masterResume.parsedData.personalInfo?.email && <li>Email</li>}
-                                        {!masterResume.parsedData.personalInfo?.phone && <li>Phone Number</li>}
-                                        {!masterResume.parsedData.personalInfo?.address?.city && <li>City</li>}
-                                        {!masterResume.parsedData.personalInfo?.address?.state && <li>State</li>}
-                                        {!masterResume.parsedData.personalInfo?.address?.zipCode && <li>Zipcode</li>}
-                                        {masterResume.parsedData.education?.some(edu => !edu.field) && <li>Education Field(s)</li>}
-                                        {masterResume.parsedData.education?.some(edu => !edu.gpa) && <li>GPA(s)</li>}
-                                        {masterResume.parsedData.workExperience?.some(job => !job.location) && <li>Job Location(s)</li>}
-                                        {masterResume.parsedData.workExperience?.some(job => !job.period) && <li>Job Period(s)</li>}
-                                        {masterResume.parsedData.projects?.some(proj => !proj.date) && <li>Project Date(s)</li>}
-                                        {(!masterResume.parsedData.onlinePresence?.linkedin ||
-                                            masterResume.parsedData.onlinePresence.linkedin.length > 40) && <li>LinkedIn URL (optimize)</li>}
+                                        {getMissingProfileData().map((item, index) => {
+                                            // Convert technical keys to user-friendly labels
+                                            const labels = {
+                                                'firstName': 'First Name',
+                                                'lastName': 'Last Name',
+                                                'email': 'Email',
+                                                'phone': 'Phone Number',
+                                                'city': 'City',
+                                                'state': 'State',
+                                                'zipcode': 'Zipcode',
+                                                'linkedin': 'LinkedIn URL (optimize to be shorter)'
+                                            };
+
+                                            // Handle array items (education, jobs, projects)
+                                            if (item.startsWith('education_field_')) {
+                                                const idx = item.split('_').pop();
+                                                return <li key={item}>Education Field for degree #{parseInt(idx) + 1}</li>;
+                                            }
+                                            if (item.startsWith('education_gpa_')) {
+                                                const idx = item.split('_').pop();
+                                                return <li key={item}>GPA for degree #{parseInt(idx) + 1}</li>;
+                                            }
+                                            if (item.startsWith('job_location_')) {
+                                                const idx = item.split('_').pop();
+                                                const job = masterResume.parsedData.workExperience[parseInt(idx)];
+                                                return <li key={item}>Location for "{job.position}" at {job.company}</li>;
+                                            }
+                                            if (item.startsWith('job_period_')) {
+                                                const idx = item.split('_').pop();
+                                                const job = masterResume.parsedData.workExperience[parseInt(idx)];
+                                                return <li key={item}>Period for "{job.position}" at {job.company}</li>;
+                                            }
+                                            if (item.startsWith('job_company_')) {
+                                                const idx = item.split('_').pop();
+                                                const job = masterResume.parsedData.workExperience[parseInt(idx)];
+                                                return <li key={item}>Company for job #{parseInt(idx) + 1} ({job.position || 'untitled'})</li>;
+                                            }
+                                            if (item.startsWith('job_position_')) {
+                                                const idx = item.split('_').pop();
+                                                const job = masterResume.parsedData.workExperience[parseInt(idx)];
+                                                return <li key={item}>Position for job #{parseInt(idx) + 1} at {job.company || 'unknown company'}</li>;
+                                            }
+                                            if (item.startsWith('project_date_')) {
+                                                const idx = item.split('_').pop();
+                                                const project = masterResume.parsedData.projects[parseInt(idx)];
+                                                return <li key={item}>Date for project "{project.name}"</li>;
+                                            }
+
+                                            // Handle simple fields
+                                            return <li key={item}>{labels[item] || item}</li>;
+                                        })}
                                     </ul>
                                 </div>
                             ) : (
