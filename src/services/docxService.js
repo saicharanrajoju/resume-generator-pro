@@ -535,11 +535,25 @@ const docxService = {
                 })
             );
 
+            // Helper function to shorten degree names
+            const shortenDegree = (degree) => {
+                return degree
+                    .replace('Master of Science', 'M.S.')
+                    .replace('Master of Arts', 'M.A.')
+                    .replace('Master of Engineering', 'M.Eng.')
+                    .replace('Master of Business Administration', 'M.B.A.')
+                    .replace('Bachelor of Science', 'B.S.')
+                    .replace('Bachelor of Arts', 'B.A.')
+                    .replace('Bachelor of Engineering', 'B.E.')
+                    .replace('Bachelor of Technology', 'B.Tech.')
+                    .replace('Doctor of Philosophy', 'Ph.D.');
+            };
+
             resumeData.education.forEach((edu, index) => {
-                // School (bold) | Full Degree with Field (italic)
+                // School (bold) | Shortened Degree with Field (italic) | GPA (if exists)
                 const degreeText = edu.field
-                    ? `${edu.degree} in ${edu.field}`
-                    : edu.degree;
+                    ? `${shortenDegree(edu.degree)} in ${edu.field}`
+                    : shortenDegree(edu.degree);
 
                 const schoolChildren = [
                     new TextRun({
@@ -563,6 +577,26 @@ const docxService = {
                         color: '000000'
                     })
                 ];
+
+                // Add GPA on same line if exists
+                if (edu.gpa) {
+                    schoolChildren.push(
+                        new TextRun({
+                            text: ' | ',
+                            size: 22,
+                            font: 'Times New Roman',
+                            color: '000000'
+                        })
+                    );
+                    schoolChildren.push(
+                        new TextRun({
+                            text: `GPA: ${edu.gpa}`,
+                            size: 22,
+                            font: 'Times New Roman',
+                            color: '000000'
+                        })
+                    );
+                }
 
                 if (edu.year) {
                     schoolChildren.push(new TextRun({ text: '\t' }));

@@ -23,7 +23,17 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
-        const prompt = `You are an elite ATS optimization specialist. Goal: 97%+ ATS match while maintaining 100% authenticity.
+        const prompt = `You are an elite ATS optimization specialist.
+
+🎯 CRITICAL ATS TARGET: Your goal is 95%+ ATS score. 93% is NOT acceptable.
+
+To achieve 95%+:
+- Use EVERY major keyword from JD at least 2-3 times
+- Integrate keywords naturally into EVERY bullet point
+- Use exact phrases from JD (e.g., if JD says "data engineering", use "data engineering" not just "data")
+- Mirror JD's technical terminology precisely
+- If you calculate score below 95%, add more keywords until you reach 95%+
+- Only stop trying when adding more keywords would sound unnatural
 
 MASTER RESUME:
 ${masterResumeText}
@@ -108,6 +118,15 @@ CRITICAL OPTIMIZATION RULES:
     - Include degree field (e.g., "in Data Science", "in Mechanical Engineering")
     - Add job locations if available (Remote/City, State)
 
+13. EDUCATION REQUIREMENTS (CRITICAL)
+    - ALWAYS include GPA if it exists in master resume
+    - GPA format: "X.X/4.0" or "X.X/10"
+    - NEVER omit GPA - it's important for recent graduates
+    - Use full degree names (Master of Science, Bachelor of Engineering)
+      Note: These will be automatically shortened to M.S., B.E. in the final DOCX
+    - Field is REQUIRED (e.g., "in Data Science")
+    - Year is REQUIRED with "Expected" if ongoing
+
 12. ATS SCORE CALCULATION (MUST BE ACCURATE - NO FAKE SCORES)
     
     CRITICAL: You MUST calculate the REAL score. Do NOT just return 97.
@@ -175,10 +194,10 @@ OUTPUT FORMAT (JSON):
     "education": [
       {
         "school": "University Name",
-        "degree": "Degree Type (e.g., Master of Science, Bachelor of Engineering)",
-        "field": "Field of Study (e.g., Data Science, Mechanical Engineering)",
-        "year": "Expected Month Year OR Month Year (add 'Expected' if ongoing)",
-        "gpa": "X.X/4.0 (only if 3.5+)",
+        "degree": "Master of Science OR Bachelor of Engineering OR Master of Arts, etc.",
+        "field": "Field of Study (e.g., Data Science, Mechanical Engineering) - REQUIRED",
+        "year": "Expected Month Year OR Month Year (add 'Expected' if ongoing) - REQUIRED",
+        "gpa": "X.X/4.0 OR X.X/10 - ALWAYS INCLUDE IF AVAILABLE IN MASTER RESUME",
         "relevantCoursework": "Course1, Course2, Course3 (only if very relevant to JD)"
       }
     ]
