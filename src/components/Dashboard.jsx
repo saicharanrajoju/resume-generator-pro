@@ -463,25 +463,6 @@ function DashboardHome({ masterResume, navigate, user, usageHistory = [] }) {
                 </div>
             </div>
 
-            {/* Recent Activity (Optional) */}
-            <div className="mt-8 bg-white rounded-lg shadow-lg p-6">
-                <h2 className="text-xl font-semibold mb-4">Quick Tips</h2>
-                <ul className="space-y-2 text-sm text-gray-600">
-                    <li className="flex items-start gap-2">
-                        <span className="text-blue-600">💡</span>
-                        <span>Click the stats above to preview your master resume content</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                        <span className="text-blue-600">💡</span>
-                        <span>Generate multiple versions of your resume for different job applications</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                        <span className="text-blue-600">💡</span>
-                        <span>Higher ATS scores mean better chances of getting past automated screening</span>
-                    </li>
-                </ul>
-            </div>
-
             {/* Analytics Modal */}
             {showFullAnalytics && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
