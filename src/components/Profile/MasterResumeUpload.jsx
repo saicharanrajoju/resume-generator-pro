@@ -77,20 +77,69 @@ function MasterResumeUpload({ existingResume, onComplete }) {
 
     const getMissingProfileData = (resumeData) => {
         const resume = resumeData || masterResume;
-        if (!resume) return null;
+        if (!resume) return [];
 
         const missing = [];
 
-        if (!resume.parsedData.personalInfo.address?.zipCode) {
+        // Check all personal info fields
+        if (!resume.parsedData.personalInfo?.firstName) {
+            missing.push('firstName');
+        }
+        if (!resume.parsedData.personalInfo?.lastName) {
+            missing.push('lastName');
+        }
+        if (!resume.parsedData.personalInfo?.email) {
+            missing.push('email');
+        }
+        if (!resume.parsedData.personalInfo?.phone) {
+            missing.push('phone');
+        }
+        if (!resume.parsedData.personalInfo?.address?.city) {
+            missing.push('city');
+        }
+        if (!resume.parsedData.personalInfo?.address?.state) {
+            missing.push('state');
+        }
+        if (!resume.parsedData.personalInfo?.address?.zipCode) {
             missing.push('zipcode');
         }
 
-        if (resume.parsedData.education?.some(edu => !edu.field)) {
-            missing.push('education');
+        // Check education fields
+        if (resume.parsedData.education) {
+            resume.parsedData.education.forEach((edu, index) => {
+                if (!edu.field) {
+                    missing.push(`education_field_${index}`);
+                }
+                if (!edu.gpa) {
+                    missing.push(`education_gpa_${index}`);
+                }
+            });
         }
 
+        // Check work experience locations and periods
+        if (resume.parsedData.workExperience) {
+            resume.parsedData.workExperience.forEach((job, index) => {
+                if (!job.location) {
+                    missing.push(`job_location_${index}`);
+                }
+                if (!job.period) {
+                    missing.push(`job_period_${index}`);
+                }
+            });
+        }
+
+        // Check project dates
+        if (resume.parsedData.projects) {
+            resume.parsedData.projects.forEach((project, index) => {
+                if (!project.date) {
+                    missing.push(`project_date_${index}`);
+                }
+            });
+        }
+
+        // Check LinkedIn optimization
         const linkedin = resume.parsedData.onlinePresence?.linkedin;
-        if (linkedin && linkedin.length > 40) {
+        if (!linkedin || linkedin.length > 40) {
             missing.push('linkedin');
         }
 
@@ -173,22 +222,52 @@ function MasterResumeUpload({ existingResume, onComplete }) {
         let score = 0;
         let total = 0;
 
-        // Check zipcode
-        total++;
-        if (masterResume.parsedData.personalInfo.address?.zipCode) score++;
+        // Personal Info (7 fields - most important)
+        const personalFields = [
+            masterResume.parsedData.personalInfo?.firstName,
+            masterResume.parsedData.personalInfo?.lastName,
+            masterResume.parsedData.personalInfo?.email,
+            masterResume.parsedData.personalInfo?.phone,
+            masterResume.parsedData.personalInfo?.address?.city,
+            masterResume.parsedData.personalInfo?.address?.state,
+            masterResume.parsedData.personalInfo?.address?.zipCode
+        ];
 
-        // Check education fields
+        personalFields.forEach(field => {
+            total++;
+            if (field) score++;
+        });
+
+        // Education fields (field and GPA for each degree)
         if (masterResume.parsedData.education) {
-            total += masterResume.parsedData.education.length;
-            score += masterResume.parsedData.education.filter(edu => edu.field).length;
+            masterResume.parsedData.education.forEach(edu => {
+                total += 2; // field + gpa
+                if (edu.field) score++;
+                if (edu.gpa) score++;
+            });
         }
 
-        // Check LinkedIn
+        // Work Experience (location and period for each job)
+        if (masterResume.parsedData.workExperience) {
+            masterResume.parsedData.workExperience.forEach(job => {
+                total += 2; // location + period
+                if (job.location) score++;
+                if (job.period) score++;
+            });
+        }
+
+        // Projects (date for each project)
+        if (masterResume.parsedData.projects) {
+            total += masterResume.parsedData.projects.length;
+            score += masterResume.parsedData.projects.filter(p => p.date).length;
+        }
+
+        // LinkedIn
         total++;
         const linkedin = masterResume.parsedData.onlinePresence?.linkedin;
         if (linkedin && linkedin.length <= 40) score++;
 
-        return Math.round((score / total) * 100);
+        return total > 0 ? Math.round((score / total) * 100) : 0;
     };
 
     const hasAnySelected = fillZipcode || fillEducation || fillLinkedIn;
@@ -275,9 +354,15 @@ function MasterResumeUpload({ existingResume, onComplete }) {
                             <h3 className="text-lg font-semibold text-gray-800">
                                 📊 Profile Completeness: {calculateCompleteness()}%
                             </h3>
-                            <p className="text-sm text-gray-600">
-                                Optional: Add these details to improve all future resumes
-                            </p>
+                            {calculateCompleteness() < 100 ? (
+                                <p className="text-sm text-gray-600">
+                                    Add these details to improve all future resumes
+                                </p>
+                            ) : (
+                                <p className="text-sm text-green-600">
+                                    ✓ Your profile is complete!
+                                </p>
+                            )}
                         </div>
                         <button
                             onClick={() => setShowProfileDetails(!showProfileDetails)}
@@ -289,6 +374,38 @@ function MasterResumeUpload({ existingResume, onComplete }) {
 
                     {showProfileDetails && (
                         <div className="space-y-4 mt-4 border-t border-blue-200 pt-4">
+                            {/* Show summary of missing items */}
+                            {getMissingProfileData().length > 0 ? (
+                                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                                    <p className="text-sm font-medium text-yellow-800 mb-2">
+                                        Missing {getMissingProfileData().length} item(s):
+                                    </p>
+                                    <ul className="text-xs text-yellow-700 list-disc list-inside space-y-1">
+                                        {!masterResume.parsedData.personalInfo?.firstName && <li>First Name</li>}
+                                        {!masterResume.parsedData.personalInfo?.lastName && <li>Last Name</li>}
+                                        {!masterResume.parsedData.personalInfo?.email && <li>Email</li>}
+                                        {!masterResume.parsedData.personalInfo?.phone && <li>Phone Number</li>}
+                                        {!masterResume.parsedData.personalInfo?.address?.city && <li>City</li>}
+                                        {!masterResume.parsedData.personalInfo?.address?.state && <li>State</li>}
+                                        {!masterResume.parsedData.personalInfo?.address?.zipCode && <li>Zipcode</li>}
+                                        {masterResume.parsedData.education?.some(edu => !edu.field) && <li>Education Field(s)</li>}
+                                        {masterResume.parsedData.education?.some(edu => !edu.gpa) && <li>GPA(s)</li>}
+                                        {masterResume.parsedData.workExperience?.some(job => !job.location) && <li>Job Location(s)</li>}
+                                        {masterResume.parsedData.workExperience?.some(job => !job.period) && <li>Job Period(s)</li>}
+                                        {masterResume.parsedData.projects?.some(proj => !proj.date) && <li>Project Date(s)</li>}
+                                        {(!masterResume.parsedData.onlinePresence?.linkedin ||
+                                            masterResume.parsedData.onlinePresence.linkedin.length > 40) && <li>LinkedIn URL (optimize)</li>}
+                                    </ul>
+                                </div>
+                            ) : (
+                                <div className="p-3 bg-green-50 border border-green-200 rounded">
+                                    <p className="text-sm text-green-700">
+                                        ✓ All fields are complete! Your profile is optimized.
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Keep existing checkbox fields for filling data */}
                             {/* Zipcode */}
                             {!masterResume.parsedData.personalInfo.address?.zipCode && (
                                 <div>
