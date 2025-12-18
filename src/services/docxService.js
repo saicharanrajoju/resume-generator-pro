@@ -578,26 +578,7 @@ const docxService = {
                     })
                 ];
 
-                // Add GPA on same line if exists
-                if (edu.gpa) {
-                    schoolChildren.push(
-                        new TextRun({
-                            text: ' | ',
-                            size: 22,
-                            font: 'Times New Roman',
-                            color: '000000'
-                        })
-                    );
-                    schoolChildren.push(
-                        new TextRun({
-                            text: `GPA: ${edu.gpa}`,
-                            size: 22,
-                            font: 'Times New Roman',
-                            color: '000000'
-                        })
-                    );
-                }
-
+                // Add year (right-aligned) - NO GPA on this line
                 if (edu.year) {
                     schoolChildren.push(new TextRun({ text: '\t' }));
                     schoolChildren.push(
@@ -624,10 +605,27 @@ const docxService = {
                     })
                 );
 
-                const isLastEdu = index === resumeData.education.length - 1;
-                const spacingAfter = isLastEdu ? 100 : 200;
+                // GPA on separate line (if exists)
+                if (edu.gpa) {
+                    sections.push(
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: `GPA: ${edu.gpa}`,
+                                    size: 22,
+                                    font: 'Times New Roman',
+                                    color: '000000'
+                                })
+                            ],
+                            spacing: { after: 80 }
+                        })
+                    );
+                }
 
-                // If relevant coursework exists, it's the last item
+                // Relevant Coursework (if exists)
+                const isLastEdu = index === resumeData.education.length - 1;
+                const finalSpacing = isLastEdu ? 100 : 200;
+
                 if (edu.relevantCoursework) {
                     sections.push(
                         new Paragraph({
@@ -647,33 +645,17 @@ const docxService = {
                                     color: '000000'
                                 })
                             ],
-                            spacing: { after: spacingAfter }
+                            spacing: { after: finalSpacing }
                         })
                     );
-                } else if (edu.gpa) {
-                    // If no coursework but GPA exists, GPA is last
+                } else if (!edu.gpa && !isLastEdu) {
+                    // Add spacing between education entries if no GPA and no coursework
                     sections.push(
                         new Paragraph({
-                            children: [
-                                new TextRun({
-                                    text: `GPA: ${edu.gpa}`,
-                                    size: 22,
-                                    font: 'Times New Roman',
-                                    color: '000000'
-                                })
-                            ],
-                            spacing: { after: spacingAfter }
+                            text: '',
+                            spacing: { after: finalSpacing }
                         })
                     );
-                } else {
-                    // Fallback if neither exists (modify the school paragraph we pushed earlier)
-                    // But easier to just push an empty spacer if structure is complex, 
-                    // OR we can assume most have one. 
-                    // Let's stick to the user pattern: modify last element. 
-                    // Since we already pushed the School/Degree paragraph, we can't easily modify it here 
-                    // without tracking it. 
-                    // However, the user request specifically targeted removing the empty paragraph block.
-                    // For Education, it's safer to add the spacing to the LAST logic block that runs.
                 }
             });
         }
