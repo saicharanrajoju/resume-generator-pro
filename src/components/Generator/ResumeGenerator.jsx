@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { claudeService } from '../../services/claudeService';
 import docxService from '../../services/docxService';
 import { useAuth } from '../../hooks/useAuth';
@@ -18,6 +19,11 @@ function ResumeGenerator({ masterResume }) {
     const [userMessage, setUserMessage] = useState('');
     const [refining, setRefining] = useState(false);
     const [resumeHistory, setResumeHistory] = useState([]);
+
+    // UI enhancement state
+    const [showAllMatched, setShowAllMatched] = useState(false);
+    const [showAllMissing, setShowAllMissing] = useState(false);
+    const [showPreview, setShowPreview] = useState(true);
 
     const handleGenerate = async () => {
         if (!jobDescription.trim()) {
@@ -282,6 +288,98 @@ Want to make more changes?`
                                 </p>
                             </div>
 
+                            {/* Keyword Analysis Stats */}
+                            {generatedResume.keywordAnalysis && (
+                                <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+                                    <h4 className="font-semibold mb-2 text-blue-900">Keyword Analysis</h4>
+                                    <div className="grid grid-cols-3 gap-4 text-sm">
+                                        <div>
+                                            <p className="text-blue-700 font-medium">Total JD Keywords</p>
+                                            <p className="text-2xl font-bold text-blue-900">
+                                                {generatedResume.keywordAnalysis.totalJDKeywords}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p className="text-green-700 font-medium">Matched</p>
+                                            <p className="text-2xl font-bold text-green-600">
+                                                {generatedResume.keywordAnalysis.matchedInResume}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p className="text-orange-700 font-medium">Missing</p>
+                                            <p className="text-2xl font-bold text-orange-600">
+                                                {generatedResume.keywordAnalysis.totalJDKeywords - generatedResume.keywordAnalysis.matchedInResume}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Matched Keywords */}
+                            {generatedResume.matchedKeywords && generatedResume.matchedKeywords.length > 0 && (
+                                <div className="mb-6">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <h4 className="font-semibold text-green-700 flex items-center gap-2">
+                                            <span>✓</span>
+                                            <span>Matched Keywords ({generatedResume.matchedKeywords.length})</span>
+                                        </h4>
+                                        <button onClick={() => setShowAllMatched(!showAllMatched)} className="text-xs text-green-600 hover:text-green-700">
+                                            {showAllMatched ? 'Show Less' : 'Show All'}
+                                        </button>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {(showAllMatched ? generatedResume.matchedKeywords : generatedResume.matchedKeywords.slice(0, 15)).map((keyword, i) => (
+                                            <span key={i} className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs">{keyword}</span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Missing Keywords */}
+                            {generatedResume.missingKeywords && generatedResume.missingKeywords.length > 0 && (
+                                <div className="mb-6">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <h4 className="font-semibold text-orange-700 flex items-center gap-2">
+                                            <span>⚠</span>
+                                            <span>Missing Keywords ({generatedResume.missingKeywords.length})</span>
+                                        </h4>
+                                        <button onClick={() => setShowAllMissing(!showAllMissing)} className="text-xs text-orange-600 hover:text-orange-700">
+                                            {showAllMissing ? 'Show Less' : 'Show All'}
+                                        </button>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 mb-3">
+                                        {(showAllMissing ? generatedResume.missingKeywords : generatedResume.missingKeywords.slice(0, 10)).map((keyword, i) => (
+                                            <span key={i} className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-xs">{keyword}</span>
+                                        ))}
+                                    </div>
+                                    <div className="p-3 bg-orange-50 border border-orange-200 rounded text-sm">
+                                        <p className="text-orange-800 font-medium mb-1">💡 Suggestions:</p>
+                                        <ul className="text-orange-700 text-xs list-disc list-inside space-y-1">
+                                            <li>Try: "Add more {generatedResume.missingKeywords.slice(0, 3).join(', ')} keywords"</li>
+                                            <li>Or use quick action: "More keywords" below</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* AI Suggestions - Only show if score < 95% */}
+                            {generatedResume.atsScore < 95 && (
+                                <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                                    <h4 className="font-semibold mb-2 text-purple-900 flex items-center gap-2">
+                                        <span>💡</span>
+                                        <span>AI Suggestions to Reach 95%+</span>
+                                    </h4>
+                                    <ul className="text-sm text-purple-800 space-y-2 list-disc list-inside">
+                                        {generatedResume.missingKeywords && generatedResume.missingKeywords.length > 0 && (
+                                            <li>Add these missing keywords: <span className="font-semibold">{generatedResume.missingKeywords.slice(0, 5).join(', ')}</span></li>
+                                        )}
+                                        {generatedResume.atsScore < 90 && <li>Consider using the "More keywords" quick action below</li>}
+                                        {generatedResume.atsScore >= 90 && generatedResume.atsScore < 95 && <li>You're close! Try rephrasing bullets to include more JD terminology</li>}
+                                        <li>Ensure every bullet includes at least one keyword from the job description</li>
+                                    </ul>
+                                </div>
+                            )}
+
                             {/* Refinement Chat */}
                             {showRefinementChat && (
                                 <div className="mt-6 border-t pt-6">
@@ -375,9 +473,14 @@ Want to make more changes?`
                             <div className="flex gap-3 mt-6">
                                 <button
                                     onClick={handleDownload}
-                                    className="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-medium transition-colors"
+                                    className="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-medium transition-colors flex items-center justify-center gap-2"
                                 >
                                     📥 Download Current Version
+                                    {resumeHistory.length > 1 && (
+                                        <span className="bg-green-700 px-2 py-0.5 rounded-full text-xs">
+                                            v{resumeHistory.length}
+                                        </span>
+                                    )}
                                 </button>
                                 <button
                                     onClick={() => {
