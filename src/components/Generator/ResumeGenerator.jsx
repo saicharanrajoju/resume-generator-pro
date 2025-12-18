@@ -1,11 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { claudeService } from '../../services/claudeService';
 import docxService from '../../services/docxService';
+import { useAuth } from '../../hooks/useAuth';
+import { usageService } from '../../services/usageService';
 
 function ResumeGenerator({ masterResume }) {
+    const { user } = useAuth();
     const [jobDescription, setJobDescription] = useState('');
     const [generatedResume, setGeneratedResume] = useState(null);
     const [generating, setGenerating] = useState(false);
+    const [generatingMessage, setGeneratingMessage] = useState('');
     const [error, setError] = useState(null);
 
     // Refinement chat state
@@ -15,27 +19,71 @@ function ResumeGenerator({ masterResume }) {
     const [refining, setRefining] = useState(false);
     const [resumeHistory, setResumeHistory] = useState([]);
 
-    // ... existing state ...
-
     const handleGenerate = async () => {
-        // ... existing generation code ...
+        if (!jobDescription.trim()) {
+            setError('Please paste a job description');
+            return;
+        }
 
-        // After successful generation:
-        setGeneratedResume(result);
-        setResumeHistory([result]); // Start history
-        setShowRefinementChat(true); // Show chat
-        setChatMessages([
-            {
-                role: 'assistant',
-                content: `Great! Your resume has been generated with an ATS score of ${result.atsScore}%. 
+        let warmupTimer;
+        let generatingTimer;
 
-I can help you refine it further. Just tell me what you'd like to change. For example:
-- "Add 2 soft skills to the summary"
-- "Make the first job's bullets shorter"
-- "Add more ${extractTopKeywords(jobDescription).slice(0, 2).join(' and ')} keywords"
-- "Change tone to be more action-oriented"`
+        try {
+            setGenerating(true);
+            setGeneratingMessage('Starting AI generation...');
+            setError(null);
+
+            // Show "warming up" message after 3 seconds
+            warmupTimer = setTimeout(() => {
+                setGeneratingMessage('Warming up AI service (first request takes longer)...');
+            }, 3000);
+
+            // Show "generating" message after 8 seconds
+            generatingTimer = setTimeout(() => {
+                setGeneratingMessage('Generating your tailored resume...');
+            }, 8000);
+
+            const result = await claudeService.generateTailoredResume(
+                jobDescription,
+                masterResume
+            );
+
+            clearTimeout(warmupTimer);
+            clearTimeout(generatingTimer);
+
+            if (result.usage) {
+                // Add to firestore
+                if (user?.uid) {
+                    await usageService.addUsage(user.uid, result.usage);
+                }
             }
-        ]);
+
+            // After successful generation:
+            setGeneratedResume(result);
+            setResumeHistory([result]); // Start history
+            setShowRefinementChat(true); // Show chat
+            setChatMessages([
+                {
+                    role: 'assistant',
+                    content: `Great! Your resume has been generated with an ATS score of ${result.atsScore}%. 
+    
+    I can help you refine it further. Just tell me what you'd like to change. For example:
+    - "Add 2 soft skills to the summary"
+    - "Make the first job's bullets shorter"
+    - "Add more ${extractTopKeywords(jobDescription).slice(0, 2).join(' and ')} keywords"
+    - "Change tone to be more action-oriented"`
+                }
+            ]);
+
+        } catch (err) {
+            console.error('Generation error:', err);
+            setError('Failed to generate resume. Please try again.');
+        } finally {
+            clearTimeout(warmupTimer);
+            clearTimeout(generatingTimer);
+            setGenerating(false);
+            setGeneratingMessage('');
+        }
     };
 
     const handleRefinementRequest = async () => {
@@ -66,6 +114,13 @@ I can help you refine it further. Just tell me what you'd like to change. For ex
                 jobDescription,
                 masterResume
             );
+
+            if (refinedResume.usage) {
+                // Add to firestore
+                if (user?.uid) {
+                    await usageService.addUsage(user.uid, refinedResume.usage);
+                }
+            }
 
             // Remove thinking message and add result
             setChatMessages(prev => [
@@ -113,6 +168,20 @@ Want to make more changes?`
         }
     };
 
+    const handleDownload = async () => {
+        if (!generatedResume) return;
+
+        try {
+            await docxService.generateResume(
+                generatedResume.resume,
+                masterResume.parsedData
+            );
+        } catch (err) {
+            console.error('Download error:', err);
+            setError('Failed to download resume');
+        }
+    };
+
     const extractTopKeywords = (jd) => {
         // Simple keyword extraction (you can make this smarter)
         const words = jd.toLowerCase().split(/\W+/);
@@ -122,127 +191,219 @@ Want to make more changes?`
             .slice(0, 10);
     };
 
+    const getScoreColor = (score) => {
+        if (score >= 95) return 'text-green-600';
+        if (score >= 90) return 'text-blue-600';
+        if (score >= 85) return 'text-yellow-600';
+        return 'text-red-600';
+    };
+
+    const getScoreBgColor = (score) => {
+        if (score >= 95) return 'bg-green-600';
+        if (score >= 90) return 'bg-blue-600';
+        if (score >= 85) return 'bg-yellow-600';
+        return 'bg-red-600';
+    };
+
     return (
         <div className="max-w-7xl mx-auto px-4 py-8">
-            {/* ... existing code ... */}
+            <h1 className="text-3xl font-bold text-gray-800 mb-8">
+                Generate Tailored Resume
+            </h1>
 
-            {/* Right Column - Output */}
-            <div>
-                {generatedResume && (
-                    <div className="bg-white rounded-lg shadow-lg p-6">
-                        {/* ATS Score and details ... */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Left Column - Input */}
+                <div>
+                    <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                        <h2 className="text-xl font-semibold mb-4">Job Description</h2>
+                        <textarea
+                            value={jobDescription}
+                            onChange={(e) => setJobDescription(e.target.value)}
+                            placeholder="Paste the complete job description here..."
+                            className="w-full h-96 border rounded-lg p-4 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                        />
+                    </div>
 
-                        {/* Refinement Chat */}
-                        {showRefinementChat && (
-                            <div className="mt-6 border-t pt-6">
-                                <h4 className="font-semibold mb-4 flex items-center gap-2">
-                                    <span>🤖</span>
-                                    <span>Resume Refinement Assistant</span>
-                                </h4>
+                    {error && (
+                        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
+                            {error}
+                        </div>
+                    )}
 
-                                {/* Chat Messages */}
-                                <div className="bg-gray-50 rounded-lg p-4 mb-4 max-h-96 overflow-y-auto space-y-3">
-                                    {chatMessages.map((msg, index) => (
-                                        <div
-                                            key={index}
-                                            className={`${msg.role === 'user'
+                    <button
+                        onClick={handleGenerate}
+                        disabled={!jobDescription.trim() || generating}
+                        className="w-full bg-blue-600 text-white px-8 py-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium text-lg transition-colors"
+                    >
+                        {generating ? (
+                            <span className="flex flex-col items-center justify-center gap-2">
+                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                <span className="text-sm">{generatingMessage}</span>
+                            </span>
+                        ) : (
+                            'Generate Tailored Resume'
+                        )}
+                    </button>
+
+                    {!generatedResume && !generating && (
+                        <p className="text-center text-gray-500 mt-4 text-sm">
+                            Paste a job description and click Generate to start.
+                        </p>
+                    )}
+                </div>
+
+                {/* Right Column - Output */}
+                <div>
+                    {generatedResume ? (
+                        <div className="bg-white rounded-lg shadow-lg p-6">
+                            {/* ATS Score */}
+                            <div className="mb-6">
+                                <div className="flex items-center justify-between mb-2">
+                                    <h3 className="text-lg font-semibold">ATS Match Score</h3>
+                                    <span className={`text-4xl font-bold ${getScoreColor(generatedResume.atsScore)}`}>
+                                        {generatedResume.atsScore}%
+                                    </span>
+                                </div>
+
+                                {/* Progress bar */}
+                                <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
+                                    <div
+                                        className={`h-3 rounded-full transition-all ${getScoreBgColor(generatedResume.atsScore)}`}
+                                        style={{ width: `${generatedResume.atsScore}%` }}
+                                    />
+                                </div>
+
+                                {/* Score interpretation */}
+                                <p className="text-sm text-gray-600">
+                                    {generatedResume.atsScore >= 95 && '🎯 Excellent! Your resume is highly optimized.'}
+                                    {generatedResume.atsScore >= 90 && generatedResume.atsScore < 95 && '✨ Great! Strong ATS compatibility.'}
+                                    {generatedResume.atsScore >= 85 && generatedResume.atsScore < 90 && '👍 Good match with room for improvement.'}
+                                    {generatedResume.atsScore < 85 && '⚠️ Consider adding more relevant keywords.'}
+                                </p>
+                            </div>
+
+                            {/* Refinement Chat */}
+                            {showRefinementChat && (
+                                <div className="mt-6 border-t pt-6">
+                                    <h4 className="font-semibold mb-4 flex items-center gap-2">
+                                        <span>🤖</span>
+                                        <span>Resume Refinement Assistant</span>
+                                    </h4>
+
+                                    {/* Chat Messages */}
+                                    <div className="bg-gray-50 rounded-lg p-4 mb-4 max-h-96 overflow-y-auto space-y-3">
+                                        {chatMessages.map((msg, index) => (
+                                            <div
+                                                key={index}
+                                                className={`${msg.role === 'user'
                                                     ? 'bg-blue-100 ml-8'
                                                     : 'bg-white mr-8'
-                                                } rounded-lg p-3 ${msg.isThinking ? 'animate-pulse' : ''}`}
-                                        >
-                                            <p className={`text-sm ${msg.role === 'user' ? 'text-blue-900' : 'text-gray-800'
-                                                } whitespace-pre-line`}>
-                                                {msg.content}
-                                            </p>
-                                        </div>
-                                    ))}
-                                </div>
+                                                    } rounded-lg p-3 ${msg.isThinking ? 'animate-pulse' : ''}`}
+                                            >
+                                                <p className={`text-sm ${msg.role === 'user' ? 'text-blue-900' : 'text-gray-800'
+                                                    } whitespace-pre-line`}>
+                                                    {msg.content}
+                                                </p>
+                                            </div>
+                                        ))}
+                                    </div>
 
-                                {/* Quick Actions */}
-                                <div className="mb-3">
-                                    <p className="text-xs text-gray-500 mb-2">Quick actions:</p>
-                                    <div className="flex flex-wrap gap-2">
+                                    {/* Quick Actions */}
+                                    <div className="mb-3">
+                                        <p className="text-xs text-gray-500 mb-2">Quick actions:</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            <button
+                                                onClick={() => setUserMessage('Add 2 soft skills like leadership and teamwork to the summary')}
+                                                className="text-xs bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-full"
+                                            >
+                                                + Add soft skills
+                                            </button>
+                                            <button
+                                                onClick={() => setUserMessage('Make all bullets more concise, max 1.5 lines each')}
+                                                className="text-xs bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-full"
+                                            >
+                                                ✂️ Shorten bullets
+                                            </button>
+                                            <button
+                                                onClick={() => setUserMessage('Add more action verbs and make tone more confident')}
+                                                className="text-xs bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-full"
+                                            >
+                                                💪 Stronger tone
+                                            </button>
+                                            <button
+                                                onClick={() => setUserMessage(`Add more occurrences of these keywords: ${extractTopKeywords(jobDescription).slice(0, 3).join(', ')}`)}
+                                                className="text-xs bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-full"
+                                            >
+                                                🔑 More keywords
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Input Box */}
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={userMessage}
+                                            onChange={(e) => setUserMessage(e.target.value)}
+                                            onKeyPress={(e) => e.key === 'Enter' && handleRefinementRequest()}
+                                            placeholder="Tell me what to change..."
+                                            disabled={refining}
+                                            className="flex-1 border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                                        />
                                         <button
-                                            onClick={() => setUserMessage('Add 2 soft skills like leadership and teamwork to the summary')}
-                                            className="text-xs bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-full"
+                                            onClick={handleRefinementRequest}
+                                            disabled={refining || !userMessage.trim()}
+                                            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
                                         >
-                                            + Add soft skills
-                                        </button>
-                                        <button
-                                            onClick={() => setUserMessage('Make all bullets more concise, max 1.5 lines each')}
-                                            className="text-xs bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-full"
-                                        >
-                                            ✂️ Shorten bullets
-                                        </button>
-                                        <button
-                                            onClick={() => setUserMessage('Add more action verbs and make tone more confident')}
-                                            className="text-xs bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-full"
-                                        >
-                                            💪 Stronger tone
-                                        </button>
-                                        <button
-                                            onClick={() => setUserMessage(`Add more occurrences of these keywords: ${extractTopKeywords(jobDescription).slice(0, 3).join(', ')}`)}
-                                            className="text-xs bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-full"
-                                        >
-                                            🔑 More keywords
+                                            {refining ? '⏳' : '📤'}
                                         </button>
                                     </div>
-                                </div>
 
-                                {/* Input Box */}
-                                <div className="flex gap-2">
-                                    <input
-                                        type="text"
-                                        value={userMessage}
-                                        onChange={(e) => setUserMessage(e.target.value)}
-                                        onKeyPress={(e) => e.key === 'Enter' && handleRefinementRequest()}
-                                        placeholder="Tell me what to change..."
-                                        disabled={refining}
-                                        className="flex-1 border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
-                                    />
-                                    <button
-                                        onClick={handleRefinementRequest}
-                                        disabled={refining || !userMessage.trim()}
-                                        className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
-                                    >
-                                        {refining ? '⏳' : '📤'}
-                                    </button>
+                                    {/* Undo Button */}
+                                    {resumeHistory.length > 1 && (
+                                        <button
+                                            onClick={handleUndo}
+                                            className="mt-3 text-sm text-gray-600 hover:text-gray-800 flex items-center gap-1"
+                                        >
+                                            ↩️ Undo last change
+                                        </button>
+                                    )}
                                 </div>
+                            )}
 
-                                {/* Undo Button */}
-                                {resumeHistory.length > 1 && (
-                                    <button
-                                        onClick={handleUndo}
-                                        className="mt-3 text-sm text-gray-600 hover:text-gray-800 flex items-center gap-1"
-                                    >
-                                        ↩️ Undo last change
-                                    </button>
-                                )}
+                            {/* Action Buttons */}
+                            <div className="flex gap-3 mt-6">
+                                <button
+                                    onClick={handleDownload}
+                                    className="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-medium transition-colors"
+                                >
+                                    📥 Download Current Version
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setGeneratedResume(null);
+                                        setShowRefinementChat(false);
+                                        setChatMessages([]);
+                                        setResumeHistory([]);
+                                        setJobDescription('');
+                                    }}
+                                    className="px-6 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 font-medium transition-colors"
+                                >
+                                    🔄 Start Over
+                                </button>
                             </div>
-                        )}
-
-                        {/* Action Buttons */}
-                        <div className="flex gap-3 mt-6">
-                            <button
-                                onClick={handleDownload}
-                                className="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-medium transition-colors"
-                            >
-                                📥 Download Current Version
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setGeneratedResume(null);
-                                    setShowRefinementChat(false);
-                                    setChatMessages([]);
-                                    setResumeHistory([]);
-                                }}
-                                className="px-6 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 font-medium transition-colors"
-                            >
-                                🔄 Start Over
-                            </button>
                         </div>
-                    </div>
-                )}
+                    ) : (
+                        !generating && (
+                            <div className="bg-gray-50 rounded-lg p-12 text-center">
+                                <div className="text-6xl mb-4">📄</div>
+                                <p className="text-gray-600">
+                                    Paste a job description and click Generate to create your tailored resume
+                                </p>
+                            </div>
+                        )
+                    )}
+                </div>
             </div>
         </div>
     );
