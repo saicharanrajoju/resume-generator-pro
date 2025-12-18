@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, Navigate } from 'react-router-dom';
+import { ChevronDown, ChevronRight, Briefcase, Rocket, Award, GraduationCap } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { masterResumeService } from '../services/masterResumeService';
 import MasterResumeUpload from './Profile/MasterResumeUpload';
@@ -188,152 +189,297 @@ function Dashboard() {
 // Dashboard Home Component
 function DashboardHome({ masterResume, navigate, user, usageHistory = [] }) {
     const [showFullAnalytics, setShowFullAnalytics] = useState(false);
+
+    // Expandable states
+    const [expandedSections, setExpandedSections] = useState({
+        experience: false,
+        projects: false,
+        certifications: false,
+        education: false
+    });
+
+    const toggleSection = (section) => {
+        setExpandedSections(prev => ({
+            ...prev,
+            [section]: !prev[section]
+        }));
+    };
+
     if (!masterResume) {
         return (
-            <div className="max-w-4xl mx-auto px-4 py-12">
-                <div className="bg-white rounded-lg shadow-lg p-12 text-center">
-                    <div className="text-6xl mb-6">📄</div>
-                    <h2 className="text-3xl font-bold text-gray-800 mb-4">
-                        Welcome to Resume Generator Pro!
-                    </h2>
-                    <p className="text-gray-600 mb-8 max-w-2xl mx-auto">
-                        Upload your master resume once, and we'll use AI to generate perfectly tailored resumes for every job you apply to. No more manual editing!
-                    </p>
-
-                    <div className="bg-blue-50 border-l-4 border-blue-400 p-6 mb-8 text-left max-w-2xl mx-auto">
-                        <h3 className="font-semibold text-gray-800 mb-3">How it works:</h3>
-                        <ol className="space-y-2 text-gray-700 text-sm">
-                            <li className="flex items-start gap-2">
-                                <span className="font-bold text-blue-600">1.</span>
-                                <span>Upload your complete master resume (one time)</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <span className="font-bold text-blue-600">2.</span>
-                                <span>Paste any job description</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <span className="font-bold text-blue-600">3.</span>
-                                <span>AI generates a tailored, ATS-optimized resume instantly</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <span className="font-bold text-blue-600">4.</span>
-                                <span>Download as professional DOCX and apply!</span>
-                            </li>
-                        </ol>
-                    </div>
-
-                    <button
-                        onClick={() => navigate('/dashboard/upload-resume')}
-                        className="bg-blue-600 text-white px-8 py-4 rounded-lg hover:bg-blue-700 transition-colors font-medium text-lg"
-                    >
-                        Upload Master Resume
-                    </button>
-                </div>
+            <div className="max-w-4xl mx-auto px-4 py-12 text-center">
+                <div className="text-6xl mb-4">📄</div>
+                <h2 className="text-2xl font-semibold mb-4">No Master Resume Found</h2>
+                <p className="text-gray-600 mb-6">
+                    Upload your master resume to get started
+                </p>
+                <button
+                    onClick={() => navigate('/dashboard/upload-resume')}
+                    className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 font-medium"
+                >
+                    Upload Master Resume
+                </button>
             </div>
         );
     }
 
-    // Extract basic info from parsed data
-    const parsedData = masterResume.parsedData || {};
-    const personalInfo = parsedData.personalInfo || {};
-    const workExperience = parsedData.workExperience || [];
-    const projects = parsedData.projects || [];
-    const certifications = parsedData.certifications || [];
-    const uploadDate = new Date(masterResume.uploadDate).toLocaleDateString();
+    const stats = {
+        experience: masterResume.parsedData.workExperience?.length || 0,
+        projects: masterResume.parsedData.projects?.length || 0,
+        certifications: masterResume.parsedData.certifications?.length || 0,
+        education: masterResume.parsedData.education?.length || 0
+    };
 
     return (
         <div className="max-w-7xl mx-auto px-4 py-8">
-            {/* Master Resume Status Card */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg shadow-lg p-8 mb-8">
-                <div className="flex items-start justify-between">
-                    <div>
-                        <h2 className="text-3xl font-bold mb-2">
-                            Welcome back, {personalInfo.firstName || user.displayName || 'there'}!
-                        </h2>
-                        <div className="space-y-2 text-blue-100">
-                            <p className="flex items-center gap-2">
-                                <span className="text-2xl">✓</span>
-                                <span className="text-lg">Master Resume Active</span>
-                            </p>
-                            <p className="text-sm">Uploaded on {uploadDate}</p>
-                            {personalInfo.email && <p className="text-sm">📧 {personalInfo.email}</p>}
-                        </div>
-                    </div>
-                    <button
-                        onClick={() => navigate('/dashboard/update-resume')}
-                        className="bg-white text-blue-600 px-6 py-2 rounded-lg hover:bg-blue-50 transition-colors font-medium text-sm"
-                    >
-                        Update Resume
-                    </button>
-                </div>
+            <div className="mb-8">
+                <h1 className="text-3xl font-bold text-gray-800 mb-2">
+                    Welcome back, {masterResume.parsedData.personalInfo.firstName}! 👋
+                </h1>
+                <p className="text-gray-600">
+                    Your master resume is ready. Let's create some tailored resumes!
+                </p>
             </div>
 
-            {/* Quick Action - Generate Resume */}
-            <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
-                <div className="flex items-center gap-4 mb-6">
-                    <div className="text-5xl">🎯</div>
-                    <div>
-                        <h3 className="text-2xl font-bold text-gray-800">Generate Tailored Resume</h3>
-                        <p className="text-gray-600">Paste a job description and get an optimized resume in seconds</p>
-                    </div>
-                </div>
+            {/* Quick Actions & Analytics */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 <button
                     onClick={() => navigate('/dashboard/generate')}
-                    className="w-full bg-blue-600 text-white px-8 py-4 rounded-lg hover:bg-blue-700 transition-colors font-medium text-lg"
+                    className="bg-blue-600 text-white p-6 rounded-lg hover:bg-blue-700 transition-colors text-left"
                 >
-                    Start Generating →
+                    <div className="text-2xl mb-2">✨</div>
+                    <h3 className="text-xl font-semibold mb-1">Generate Tailored Resume</h3>
+                    <p className="text-blue-100">Create ATS-optimized resume for any job</p>
+                </button>
+
+                <button
+                    onClick={() => navigate('/dashboard/update-resume')}
+                    className="bg-gray-100 text-gray-800 p-6 rounded-lg hover:bg-gray-200 transition-colors text-left"
+                >
+                    <div className="text-2xl mb-2">📝</div>
+                    <h3 className="text-xl font-semibold mb-1">Edit Master Resume</h3>
+                    <p className="text-gray-600">Update your information</p>
+                </button>
+
+                <button
+                    onClick={() => setShowFullAnalytics(true)}
+                    className="bg-white border text-gray-800 p-6 rounded-lg hover:bg-gray-50 transition-colors text-left shadow-sm"
+                >
+                    <div className="text-2xl mb-2">📊</div>
+                    <h3 className="text-xl font-semibold mb-1">Token Usage</h3>
+                    <p className="text-gray-600">Track your AI consumption</p>
                 </button>
             </div>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                <div className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setShowFullAnalytics(true)}>
-                    <div className="flex items-center justify-between mb-2">
-                        <div className="text-3xl">📊</div>
-                        <div className="text-right">
-                            <div className="text-xs text-gray-500">Total Spent</div>
-                            <div className="text-xl font-bold text-blue-900">
-                                {/* Simple visual estimate, full details in modal */}
-                                View Stats
+            {/* Master Resume Stats - Interactive */}
+            <div className="bg-white rounded-lg shadow-lg p-6">
+                <h2 className="text-2xl font-semibold mb-6">Your Master Resume</h2>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {/* Work Experience Card */}
+                    <div className="border rounded-lg overflow-hidden transition-all hover:shadow-md">
+                        <button
+                            onClick={() => toggleSection('experience')}
+                            className="w-full p-4 text-left hover:bg-gray-50 transition-colors"
+                        >
+                            <div className="flex items-start justify-between mb-2">
+                                <Briefcase className="w-6 h-6 text-blue-600" />
+                                {expandedSections.experience ? (
+                                    <ChevronDown className="w-5 h-5 text-gray-400" />
+                                ) : (
+                                    <ChevronRight className="w-5 h-5 text-gray-400" />
+                                )}
                             </div>
-                        </div>
-                    </div>
-                    <div className="text-blue-600 font-medium text-sm">Token Usage Analytics</div>
-                    <div className="text-xs text-gray-500 mt-1">Click to view details</div>
-                </div>
+                            <div className="text-3xl font-bold text-gray-800 mb-1">
+                                {stats.experience}
+                            </div>
+                            <div className="text-sm text-gray-600">Work Experiences</div>
+                            <div className="text-xs text-gray-500 mt-1">in your master resume</div>
+                        </button>
 
-                <div className="bg-white rounded-lg shadow p-6">
-                    <div className="flex items-center justify-between mb-2">
-                        <div className="text-3xl">💼</div>
-                        <div className="text-3xl font-bold text-blue-600">
-                            {workExperience.length}
-                        </div>
+                        {expandedSections.experience && (
+                            <div className="border-t bg-gray-50 p-4 space-y-3 max-h-64 overflow-y-auto">
+                                {masterResume.parsedData.workExperience?.map((job, index) => (
+                                    <div key={index} className="text-sm">
+                                        <div className="font-semibold text-gray-800">
+                                            {index + 1}. {job.position}
+                                        </div>
+                                        <div className="text-gray-600">
+                                            {job.company}
+                                        </div>
+                                        <div className="text-xs text-gray-500">
+                                            {job.period} {job.location && `• ${job.location}`}
+                                        </div>
+                                    </div>
+                                ))}
+                                <button
+                                    onClick={() => navigate('/dashboard/update-resume')}
+                                    className="text-xs text-blue-600 hover:text-blue-700 font-medium mt-2"
+                                >
+                                    View Full Details →
+                                </button>
+                            </div>
+                        )}
                     </div>
-                    <div className="text-gray-600 font-medium">Work Experiences</div>
-                    <div className="text-sm text-gray-500 mt-1">in your master resume</div>
-                </div>
 
-                <div className="bg-white rounded-lg shadow p-6">
-                    <div className="flex items-center justify-between mb-2">
-                        <div className="text-3xl">🚀</div>
-                        <div className="text-3xl font-bold text-green-600">
-                            {projects.length}
-                        </div>
-                    </div>
-                    <div className="text-gray-600 font-medium">Projects</div>
-                    <div className="text-sm text-gray-500 mt-1">ready to showcase</div>
-                </div>
+                    {/* Projects Card */}
+                    <div className="border rounded-lg overflow-hidden transition-all hover:shadow-md">
+                        <button
+                            onClick={() => toggleSection('projects')}
+                            className="w-full p-4 text-left hover:bg-gray-50 transition-colors"
+                        >
+                            <div className="flex items-start justify-between mb-2">
+                                <Rocket className="w-6 h-6 text-green-600" />
+                                {expandedSections.projects ? (
+                                    <ChevronDown className="w-5 h-5 text-gray-400" />
+                                ) : (
+                                    <ChevronRight className="w-5 h-5 text-gray-400" />
+                                )}
+                            </div>
+                            <div className="text-3xl font-bold text-gray-800 mb-1">
+                                {stats.projects}
+                            </div>
+                            <div className="text-sm text-gray-600">Projects</div>
+                            <div className="text-xs text-gray-500 mt-1">ready to showcase</div>
+                        </button>
 
-                <div className="bg-white rounded-lg shadow p-6">
-                    <div className="flex items-center justify-between mb-2">
-                        <div className="text-3xl">🏆</div>
-                        <div className="text-3xl font-bold text-purple-600">
-                            {certifications.length}
-                        </div>
+                        {expandedSections.projects && (
+                            <div className="border-t bg-gray-50 p-4 space-y-3 max-h-64 overflow-y-auto">
+                                {masterResume.parsedData.projects?.map((project, index) => (
+                                    <div key={index} className="text-sm">
+                                        <div className="font-semibold text-gray-800">
+                                            {index + 1}. {project.name}
+                                        </div>
+                                        {project.date && (
+                                            <div className="text-xs text-gray-500">{project.date}</div>
+                                        )}
+                                        {project.technologies && (
+                                            <div className="text-xs text-gray-600 mt-1">
+                                                {project.technologies.slice(0, 3).join(', ')}
+                                                {project.technologies.length > 3 && '...'}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                                <button
+                                    onClick={() => navigate('/dashboard/update-resume')}
+                                    className="text-xs text-blue-600 hover:text-blue-700 font-medium mt-2"
+                                >
+                                    View Full Details →
+                                </button>
+                            </div>
+                        )}
                     </div>
-                    <div className="text-gray-600 font-medium">Certifications</div>
-                    <div className="text-sm text-gray-500 mt-1">to highlight</div>
+
+                    {/* Certifications Card */}
+                    <div className="border rounded-lg overflow-hidden transition-all hover:shadow-md">
+                        <button
+                            onClick={() => toggleSection('certifications')}
+                            className="w-full p-4 text-left hover:bg-gray-50 transition-colors"
+                        >
+                            <div className="flex items-start justify-between mb-2">
+                                <Award className="w-6 h-6 text-yellow-600" />
+                                {expandedSections.certifications ? (
+                                    <ChevronDown className="w-5 h-5 text-gray-400" />
+                                ) : (
+                                    <ChevronRight className="w-5 h-5 text-gray-400" />
+                                )}
+                            </div>
+                            <div className="text-3xl font-bold text-gray-800 mb-1">
+                                {stats.certifications}
+                            </div>
+                            <div className="text-sm text-gray-600">Certifications</div>
+                            <div className="text-xs text-gray-500 mt-1">to highlight</div>
+                        </button>
+
+                        {expandedSections.certifications && (
+                            <div className="border-t bg-gray-50 p-4 space-y-3 max-h-64 overflow-y-auto">
+                                {masterResume.parsedData.certifications?.map((cert, index) => (
+                                    <div key={index} className="text-sm">
+                                        <div className="font-semibold text-gray-800">
+                                            {index + 1}. {cert.name}
+                                        </div>
+                                        {cert.date && (
+                                            <div className="text-xs text-gray-500">{cert.date}</div>
+                                        )}
+                                    </div>
+                                ))}
+                                <button
+                                    onClick={() => navigate('/dashboard/update-resume')}
+                                    className="text-xs text-blue-600 hover:text-blue-700 font-medium mt-2"
+                                >
+                                    View Full Details →
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Education Card */}
+                    <div className="border rounded-lg overflow-hidden transition-all hover:shadow-md">
+                        <button
+                            onClick={() => toggleSection('education')}
+                            className="w-full p-4 text-left hover:bg-gray-50 transition-colors"
+                        >
+                            <div className="flex items-start justify-between mb-2">
+                                <GraduationCap className="w-6 h-6 text-purple-600" />
+                                {expandedSections.education ? (
+                                    <ChevronDown className="w-5 h-5 text-gray-400" />
+                                ) : (
+                                    <ChevronRight className="w-5 h-5 text-gray-400" />
+                                )}
+                            </div>
+                            <div className="text-3xl font-bold text-gray-800 mb-1">
+                                {stats.education}
+                            </div>
+                            <div className="text-sm text-gray-600">Education</div>
+                            <div className="text-xs text-gray-500 mt-1">degrees earned</div>
+                        </button>
+
+                        {expandedSections.education && (
+                            <div className="border-t bg-gray-50 p-4 space-y-3 max-h-64 overflow-y-auto">
+                                {masterResume.parsedData.education?.map((edu, index) => (
+                                    <div key={index} className="text-sm">
+                                        <div className="font-semibold text-gray-800">
+                                            {edu.degree}
+                                        </div>
+                                        <div className="text-gray-600">{edu.school}</div>
+                                        {edu.field && (
+                                            <div className="text-xs text-gray-500">in {edu.field}</div>
+                                        )}
+                                        {edu.gpa && (
+                                            <div className="text-xs text-gray-500">GPA: {edu.gpa}</div>
+                                        )}
+                                    </div>
+                                ))}
+                                <button
+                                    onClick={() => navigate('/dashboard/update-resume')}
+                                    className="text-xs text-blue-600 hover:text-blue-700 font-medium mt-2"
+                                >
+                                    View Full Details →
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
+            </div>
+
+            {/* Recent Activity (Optional) */}
+            <div className="mt-8 bg-white rounded-lg shadow-lg p-6">
+                <h2 className="text-xl font-semibold mb-4">Quick Tips</h2>
+                <ul className="space-y-2 text-sm text-gray-600">
+                    <li className="flex items-start gap-2">
+                        <span className="text-blue-600">💡</span>
+                        <span>Click the stats above to preview your master resume content</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                        <span className="text-blue-600">💡</span>
+                        <span>Generate multiple versions of your resume for different job applications</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                        <span className="text-blue-600">💡</span>
+                        <span>Higher ATS scores mean better chances of getting past automated screening</span>
+                    </li>
+                </ul>
             </div>
 
             {/* Analytics Modal */}
@@ -349,33 +495,6 @@ function DashboardHome({ masterResume, navigate, user, usageHistory = [] }) {
                     </div>
                 </div>
             )}
-
-            {/* How It Works */}
-            <div className="bg-white rounded-lg shadow p-8">
-                <h3 className="text-xl font-bold text-gray-800 mb-4">How It Works</h3>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <div className="text-center">
-                        <div className="text-4xl mb-3">📋</div>
-                        <div className="font-semibold text-gray-800 mb-2">1. Paste Job Description</div>
-                        <div className="text-sm text-gray-600">Copy the job posting you want to apply for</div>
-                    </div>
-                    <div className="text-center">
-                        <div className="text-4xl mb-3">🤖</div>
-                        <div className="font-semibold text-gray-800 mb-2">2. AI Analyzes</div>
-                        <div className="text-sm text-gray-600">Claude understands requirements and keywords</div>
-                    </div>
-                    <div className="text-center">
-                        <div className="text-4xl mb-3">✨</div>
-                        <div className="font-semibold text-gray-800 mb-2">3. Resume Tailored</div>
-                        <div className="text-sm text-gray-600">Your experience optimized for the role</div>
-                    </div>
-                    <div className="text-center">
-                        <div className="text-4xl mb-3">📥</div>
-                        <div className="font-semibold text-gray-800 mb-2">4. Download & Apply</div>
-                        <div className="text-sm text-gray-600">Professional DOCX ready to submit</div>
-                    </div>
-                </div>
-            </div>
         </div>
     );
 }

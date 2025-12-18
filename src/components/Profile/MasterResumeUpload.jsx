@@ -3,6 +3,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { masterResumeService } from '../../services/masterResumeService';
 import { useNavigate } from 'react-router-dom';
 import mammoth from 'mammoth';
+import MasterResumeEditor from './MasterResumeEditor';
 
 function MasterResumeUpload({ existingResume, onComplete }) {
     const { user } = useAuth();
@@ -254,46 +255,15 @@ function MasterResumeUpload({ existingResume, onComplete }) {
                     </div>
 
                     {showMasterDetails && (
-                        <div>
-                            <div className="space-y-3 text-sm">
-                                <div><strong>Name:</strong> {masterResume.parsedData.personalInfo.firstName} {masterResume.parsedData.personalInfo.lastName}</div>
-                                <div><strong>Email:</strong> {masterResume.parsedData.personalInfo.email}</div>
-                                <div><strong>Work Experience:</strong> {masterResume.parsedData.workExperience?.length || 0} jobs</div>
-                                <div><strong>Projects:</strong> {masterResume.parsedData.projects?.length || 0}</div>
-                                <div><strong>Education:</strong> {masterResume.parsedData.education?.length || 0}</div>
-                            </div>
-
-                            <button
-                                onClick={() => setShowJsonEdit(!showJsonEdit)}
-                                className="mt-4 text-sm text-blue-600 hover:text-blue-700"
-                            >
-                                {showJsonEdit ? '✓ Hide JSON' : '{ } View/Edit as JSON'}
-                            </button>
-
-                            {showJsonEdit && (
-                                <div className="mt-2">
-                                    <textarea
-                                        value={JSON.stringify(masterResume.parsedData, null, 2)}
-                                        className="w-full h-96 border rounded p-4 font-mono text-xs bg-gray-50"
-                                        onChange={(e) => {
-                                            try {
-                                                const edited = JSON.parse(e.target.value);
-                                                setMasterResume({ ...masterResume, parsedData: edited });
-                                            } catch (err) { }
-                                        }}
-                                    />
-                                    <button
-                                        onClick={async () => {
-                                            await masterResumeService.saveMasterResume(user.uid, masterResume);
-                                            alert('✓ Saved!');
-                                        }}
-                                        className="mt-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-                                    >
-                                        Save Changes
-                                    </button>
-                                </div>
-                            )}
-                        </div>
+                        <MasterResumeEditor
+                            masterResume={masterResume}
+                            onSave={async (updatedResume) => {
+                                await masterResumeService.saveMasterResume(user.uid, updatedResume);
+                                setMasterResume(updatedResume);
+                                setShowMasterDetails(false);
+                                alert('✅ Changes saved successfully!');
+                            }}
+                        />
                     )}
                 </div>
             )}

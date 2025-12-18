@@ -1,28 +1,64 @@
 export const claudeService = {
-    // New method for master resume system
     async generateTailoredResume(jobDescription, masterResume) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 seconds timeout
+
         try {
             const response = await fetch('/api/generate-tailored-resume', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
                     jobDescription,
                     masterResumeText: masterResume.rawText,
-                    parsedData: masterResume.parsedData
-                })
+                    parsedData: masterResume.parsedData,
+                    userId: masterResume.userId
+                }),
+                signal: controller.signal
             });
 
+            clearTimeout(timeoutId);
+
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'API error');
+                throw new Error('Failed to generate resume');
             }
 
-            const data = await response.json();
-            return data;
+            return await response.json();
         } catch (error) {
-            console.error('Claude API error:', error);
+            clearTimeout(timeoutId);
+            throw error;
+        }
+    },
+
+    async refineResume(currentResume, refinementRequest, jobDescription, masterResume) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 seconds timeout
+
+        try {
+            const response = await fetch('/api/refine-resume', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    currentResume,
+                    refinementRequest,
+                    jobDescription,
+                    masterResume
+                }),
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                throw new Error('Failed to refine resume');
+            }
+
+            return await response.json();
+        } catch (error) {
+            clearTimeout(timeoutId);
             throw error;
         }
     }
