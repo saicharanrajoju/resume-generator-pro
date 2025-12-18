@@ -1,215 +1,372 @@
 import { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { masterResumeService } from '../../services/masterResumeService';
-import resumeParserService from '../../services/resumeParserService';
+import { useNavigate } from 'react-router-dom';
+import mammoth from 'mammoth';
 
-function MasterResumeUpload({ onComplete, existingResume = null }) {
+function MasterResumeUpload({ existingResume, onComplete }) {
     const { user } = useAuth();
-    const [uploadMethod, setUploadMethod] = useState('file');
-    const [resumeText, setResumeText] = useState('');
-    const [parsing, setParsing] = useState(false);
+    const navigate = useNavigate();
+    const [uploading, setUploading] = useState(false);
+    const [masterResume, setMasterResume] = useState(existingResume || null);
+    const [error, setError] = useState(null);
 
-    const handleFileUpload = async (e) => {
-        const file = e.target.files[0];
+    // Profile completion state
+    const [showProfileDetails, setShowProfileDetails] = useState(false);
+    const [fillZipcode, setFillZipcode] = useState(false);
+    const [fillEducation, setFillEducation] = useState(false);
+    const [fillLinkedIn, setFillLinkedIn] = useState(false);
+    const [updating, setUpdating] = useState(false);
+
+    const [profileData, setProfileData] = useState({
+        zipcode: '',
+        educationFields: {},
+        linkedinShort: ''
+    });
+
+    const handleFileUpload = async (event) => {
+        const file = event.target.files[0];
         if (!file) return;
 
-        const validTypes = [
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'application/msword'
-        ];
-
-        if (!validTypes.includes(file.type)) {
-            alert('Please upload a DOCX file');
+        if (!file.name.endsWith('.docx')) {
+            setError('Please upload a .docx file');
             return;
         }
-
-        setParsing(true);
 
         try {
-            // Parse file with AI
-            const parsedData = await resumeParserService.parseResumeFile(file);
+            setUploading(true);
+            setError(null);
 
-            // Get raw text (we'll need to extract this from the file)
-            const rawText = await extractTextFromFile(file);
+            // Read file as array buffer
+            const arrayBuffer = await file.arrayBuffer();
 
-            // Save to Firebase
-            await masterResumeService.saveMasterResume(user.uid, {
-                rawText,
-                parsedData,
-                fileType: 'docx'
-            });
+            // Extract text using mammoth
+            const result = await mammoth.extractRawText({ arrayBuffer });
+            const text = result.value;
 
-            alert('Master resume uploaded successfully! ✅');
-            if (onComplete) onComplete();
-        } catch (error) {
-            console.error('Upload error:', error);
-            alert('Failed to parse resume. Please try again.');
+            // Parse the resume (you'll need to implement this parsing logic)
+            const parsedData = parseResume(text);
+
+            const masterResumeData = {
+                rawText: text,
+                parsedData: parsedData,
+                uploadDate: new Date().toISOString()
+            };
+
+            // Save to Firestore
+            await masterResumeService.saveMasterResume(user.uid, masterResumeData);
+
+            setMasterResume(masterResumeData);
+            setShowProfileDetails(true); // Show profile completion
+
+        } catch (err) {
+            console.error('Upload error:', err);
+            setError('Failed to upload resume. Please try again.');
         } finally {
-            setParsing(false);
+            setUploading(false);
         }
     };
 
-    const handleTextPaste = async () => {
-        if (!resumeText.trim()) {
-            alert('Please paste your resume text');
-            return;
-        }
+    const parseResume = (text) => {
+        // Basic parsing - you should implement proper parsing logic
+        return {
+            personalInfo: {
+                firstName: '',
+                lastName: '',
+                email: '',
+                phone: '',
+                address: {
+                    city: '',
+                    state: '',
+                    zipCode: ''
+                }
+            },
+            onlinePresence: {
+                linkedin: ''
+            },
+            education: [],
+            workExperience: [],
+            projects: [],
+            certifications: []
+        };
+    };
 
-        if (resumeText.trim().length < 100) {
-            alert('Please paste more content. The text seems too short.');
-            return;
-        }
+    const updateEducationField = (index, value) => {
+        setProfileData(prev => ({
+            ...prev,
+            educationFields: {
+                ...prev.educationFields,
+                [index]: value
+            }
+        }));
+    };
 
-        setParsing(true);
+    const saveProfileData = async () => {
+        if (!user?.uid) return;
 
         try {
-            // Parse text with AI
-            const parsedData = await resumeParserService.parseResumeText(resumeText);
+            setUpdating(true);
 
-            // Save to Firebase
-            await masterResumeService.saveMasterResume(user.uid, {
-                rawText: resumeText,
-                parsedData,
-                fileType: 'text'
-            });
+            // Prepare updates
+            const updates = {};
 
-            alert('Master resume uploaded successfully! ✅');
-            if (onComplete) onComplete();
+            if (fillZipcode && profileData.zipcode) {
+                updates.zipcode = profileData.zipcode;
+            }
+
+            if (fillLinkedIn && profileData.linkedinShort) {
+                updates.linkedinShort = profileData.linkedinShort;
+            }
+
+            if (fillEducation && Object.keys(profileData.educationFields).length > 0) {
+                updates.educationFields = profileData.educationFields;
+            }
+
+            // Update master resume
+            const updated = await masterResumeService.updateProfileFields(user.uid, updates);
+
+            setMasterResume(updated);
+            setShowProfileDetails(false);
+
+            alert('✅ Profile updated successfully!');
+
         } catch (error) {
-            console.error('Parse error:', error);
-            alert('Failed to parse resume. Please try again.');
+            console.error('Error updating profile:', error);
+            alert('❌ Failed to update profile');
         } finally {
-            setParsing(false);
+            setUpdating(false);
         }
     };
 
-    const extractTextFromFile = async (file) => {
-        // For now, return a placeholder
-        // In production, we'd extract actual text from DOCX
-        return `[Content from ${file.name}]`;
+    const calculateCompleteness = () => {
+        if (!masterResume) return 0;
+
+        let score = 0;
+        let total = 0;
+
+        // Check zipcode
+        total++;
+        if (masterResume.parsedData.personalInfo.address?.zipCode) score++;
+
+        // Check education fields
+        if (masterResume.parsedData.education) {
+            total += masterResume.parsedData.education.length;
+            score += masterResume.parsedData.education.filter(edu => edu.field).length;
+        }
+
+        // Check LinkedIn
+        total++;
+        const linkedin = masterResume.parsedData.onlinePresence?.linkedin;
+        if (linkedin && linkedin.length <= 40) score++;
+
+        return Math.round((score / total) * 100);
     };
+
+    const hasAnySelected = fillZipcode || fillEducation || fillLinkedIn;
 
     return (
-        <div className="min-h-screen bg-gray-50 py-8">
-            <div className="max-w-4xl mx-auto px-4">
+        <div className="max-w-4xl mx-auto px-4 py-8">
+            <h1 className="text-3xl font-bold text-gray-800 mb-8">
+                {existingResume ? 'Update Master Resume' : 'Upload Master Resume'}
+            </h1>
+
+            {/* Upload Section */}
+            {!masterResume && (
                 <div className="bg-white rounded-lg shadow-lg p-8">
-                    <h2 className="text-3xl font-bold text-gray-800 mb-2">
-                        {existingResume ? 'Update Master Resume' : 'Upload Master Resume'}
-                    </h2>
-                    <p className="text-gray-600 mb-8">
-                        {existingResume
-                            ? 'Upload a new version of your master resume to replace the existing one.'
-                            : 'Upload your complete resume once. We\'ll use it to generate tailored resumes for each job.'}
-                    </p>
-
-                    {/* Tabs */}
-                    <div className="flex gap-2 mb-6 border-b border-gray-200">
-                        <button
-                            type="button"
-                            onClick={() => setUploadMethod('file')}
-                            className={`px-6 py-3 font-medium transition-colors ${uploadMethod === 'file'
-                                    ? 'text-blue-600 border-b-2 border-blue-600'
-                                    : 'text-gray-500 hover:text-gray-700'
-                                }`}
-                        >
-                            📄 Upload DOCX
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setUploadMethod('text')}
-                            className={`px-6 py-3 font-medium transition-colors ${uploadMethod === 'text'
-                                    ? 'text-blue-600 border-b-2 border-blue-600'
-                                    : 'text-gray-500 hover:text-gray-700'
-                                }`}
-                        >
-                            📋 Paste Text
-                        </button>
+                    <div className="text-center mb-6">
+                        <div className="text-6xl mb-4">📄</div>
+                        <h2 className="text-2xl font-semibold mb-2">Upload Your Master Resume</h2>
+                        <p className="text-gray-600">
+                            Upload your complete resume once. We'll use AI to tailor it for every job.
+                        </p>
                     </div>
 
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-12">
-                        {parsing ? (
-                            <div className="text-center">
-                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                                <p className="text-gray-600 font-medium">Analyzing your resume with AI...</p>
-                                <p className="text-sm text-gray-500 mt-2">
-                                    This may take 10-20 seconds. We're understanding every detail.
-                                </p>
-                            </div>
-                        ) : uploadMethod === 'file' ? (
-                            <>
-                                <div className="text-center">
-                                    <div className="text-6xl mb-4">📄</div>
-                                    <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                                        Upload Your Master Resume
-                                    </h3>
-                                    <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                                        Upload your complete resume. AI will understand everything and use it to create tailored versions.
-                                    </p>
-                                    <input
-                                        type="file"
-                                        accept=".doc,.docx"
-                                        onChange={handleFileUpload}
-                                        className="hidden"
-                                        id="resume-upload"
-                                    />
-                                    <label
-                                        htmlFor="resume-upload"
-                                        className="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors cursor-pointer font-medium"
-                                    >
-                                        Choose DOCX File
-                                    </label>
-                                    <p className="text-sm text-gray-500 mt-4">
-                                        Supported format: DOCX (Microsoft Word)
-                                    </p>
-                                </div>
-                            </>
-                        ) : (
-                            <>
-                                <div className="text-center mb-6">
-                                    <div className="text-6xl mb-4">📋</div>
-                                    <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                                        Paste Your Resume Text
-                                    </h3>
-                                    <p className="text-gray-600 mb-4 max-w-md mx-auto">
-                                        Open your resume → Select All (Ctrl/Cmd+A) → Copy → Paste below
-                                    </p>
-                                </div>
-
-                                <textarea
-                                    value={resumeText}
-                                    onChange={(e) => setResumeText(e.target.value)}
-                                    placeholder="Paste your complete resume here...
-
-Example: Include everything - your experience, skills, education, projects, certifications, etc.
-
-The AI will understand your entire resume and use it to generate perfectly tailored versions for each job you apply to."
-                                    className="w-full h-96 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none mb-4 font-mono text-sm"
-                                />
-
-                                <button
-                                    onClick={handleTextPaste}
-                                    disabled={!resumeText.trim()}
-                                    className="block mx-auto bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    ✨ Upload Master Resume
-                                </button>
-
-                                <p className="text-sm text-gray-500 mt-4 text-center">
-                                    Works with text from PDF, Word, or any format
-                                </p>
-                            </>
-                        )}
-                    </div>
-
-                    {existingResume && (
-                        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                            <p className="text-sm text-blue-800">
-                                <strong>Current master resume:</strong> Uploaded on {new Date(existingResume.uploadDate).toLocaleDateString()}
-                            </p>
+                    {error && (
+                        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
+                            {error}
                         </div>
                     )}
+
+                    <label className="block">
+                        <input
+                            type="file"
+                            accept=".docx"
+                            onChange={handleFileUpload}
+                            disabled={uploading}
+                            className="hidden"
+                        />
+                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 cursor-pointer transition-colors">
+                            {uploading ? (
+                                <div className="flex items-center justify-center gap-3">
+                                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                                    <span className="text-gray-600">Processing resume...</span>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="text-4xl mb-2">⬆️</div>
+                                    <p className="text-gray-600 mb-1">Click to upload or drag and drop</p>
+                                    <p className="text-sm text-gray-500">Only .docx files supported</p>
+                                </>
+                            )}
+                        </div>
+                    </label>
                 </div>
-            </div>
+            )}
+
+            {/* Profile Completion (Step 1) */}
+            {masterResume && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+                    <div className="flex items-center justify-between mb-3">
+                        <div>
+                            <h3 className="text-lg font-semibold text-gray-800">
+                                📊 Profile Completeness: {calculateCompleteness()}%
+                            </h3>
+                            <p className="text-sm text-gray-600">
+                                Optional: Add these details to improve all future resumes
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => setShowProfileDetails(!showProfileDetails)}
+                            className="text-blue-600 hover:text-blue-700 font-medium"
+                        >
+                            {showProfileDetails ? '▼ Hide' : '▶ Show Details'}
+                        </button>
+                    </div>
+
+                    {showProfileDetails && (
+                        <div className="space-y-4 mt-4 border-t border-blue-200 pt-4">
+                            {/* Zipcode */}
+                            {!masterResume.parsedData.personalInfo.address?.zipCode && (
+                                <div>
+                                    <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
+                                        <input
+                                            type="checkbox"
+                                            className="mr-2 w-4 h-4"
+                                            checked={fillZipcode}
+                                            onChange={(e) => setFillZipcode(e.target.checked)}
+                                        />
+                                        Add Zipcode
+                                    </label>
+                                    {fillZipcode && (
+                                        <input
+                                            type="text"
+                                            placeholder="76210"
+                                            className="ml-6 w-full max-w-xs border rounded px-3 py-2 focus:ring-2 focus:ring-blue-500"
+                                            value={profileData.zipcode}
+                                            onChange={(e) => setProfileData({ ...profileData, zipcode: e.target.value })}
+                                        />
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Education Fields */}
+                            {masterResume.parsedData.education?.some(edu => !edu.field) && (
+                                <div>
+                                    <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
+                                        <input
+                                            type="checkbox"
+                                            className="mr-2 w-4 h-4"
+                                            checked={fillEducation}
+                                            onChange={(e) => setFillEducation(e.target.checked)}
+                                        />
+                                        Add Education Fields
+                                    </label>
+                                    {fillEducation && (
+                                        <div className="space-y-2 ml-6">
+                                            {masterResume.parsedData.education.map((edu, index) => (
+                                                !edu.field && (
+                                                    <div key={index}>
+                                                        <label className="text-xs text-gray-600 block mb-1">
+                                                            {edu.degree} at {edu.school}
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="e.g., Data Science, Mechanical Engineering"
+                                                            className="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-blue-500"
+                                                            value={profileData.educationFields[index] || ''}
+                                                            onChange={(e) => updateEducationField(index, e.target.value)}
+                                                        />
+                                                    </div>
+                                                )
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* LinkedIn Optimization */}
+                            {masterResume.parsedData.onlinePresence?.linkedin &&
+                                masterResume.parsedData.onlinePresence.linkedin.length > 40 && (
+                                    <div>
+                                        <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
+                                            <input
+                                                type="checkbox"
+                                                className="mr-2 w-4 h-4"
+                                                checked={fillLinkedIn}
+                                                onChange={(e) => setFillLinkedIn(e.target.checked)}
+                                            />
+                                            Optimize LinkedIn URL
+                                        </label>
+                                        {fillLinkedIn && (
+                                            <div className="ml-6">
+                                                <p className="text-xs text-gray-500 mb-1">
+                                                    Current: {masterResume.parsedData.onlinePresence.linkedin}
+                                                </p>
+                                                <div className="flex items-center">
+                                                    <span className="text-sm text-gray-600">linkedin.com/in/</span>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="saicharan"
+                                                        className="flex-1 max-w-xs border rounded px-3 py-2 ml-2 focus:ring-2 focus:ring-blue-500"
+                                                        value={profileData.linkedinShort}
+                                                        onChange={(e) => setProfileData({ ...profileData, linkedinShort: e.target.value })}
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                            {/* Action Buttons */}
+                            {hasAnySelected && (
+                                <div className="flex gap-3 pt-4">
+                                    <button
+                                        onClick={saveProfileData}
+                                        disabled={updating}
+                                        className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
+                                    >
+                                        {updating ? 'Saving...' : 'Save to Profile'}
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setShowProfileDetails(false);
+                                            setFillZipcode(false);
+                                            setFillEducation(false);
+                                            setFillLinkedIn(false);
+                                        }}
+                                        className="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300 transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Continue Button */}
+                    <div className="mt-4">
+                        <button
+                            onClick={() => {
+                                if (onComplete) onComplete();
+                                navigate('/dashboard/generate');
+                            }}
+                            className="w-full bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 font-medium transition-colors"
+                        >
+                            Continue to Resume Generator →
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

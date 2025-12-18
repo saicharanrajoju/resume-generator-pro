@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import UsageTracker from './UsageTracker';
 import { claudeService } from '../../services/claudeService';
 import docxService from '../../services/docxService';
 
@@ -16,6 +17,17 @@ function ResumeGenerator({ masterResume }) {
         jobLocations: {},
         projectDates: {}
     });
+
+    // Usage Tracking
+    const [showAnalytics, setShowAnalytics] = useState(false);
+    const [usageHistory, setUsageHistory] = useState([]);
+
+    useEffect(() => {
+        const savedUsage = localStorage.getItem('tokenUsageHistory');
+        if (savedUsage) {
+            setUsageHistory(JSON.parse(savedUsage));
+        }
+    }, []);
 
     const updateJobLocation = (index, value) => {
         setJobSpecificData(prev => ({
@@ -68,6 +80,16 @@ function ResumeGenerator({ masterResume }) {
                 enrichedResume // Use enriched version with job-specific data
             );
 
+            if (result.usage) {
+                const newUsage = {
+                    timestamp: new Date().toISOString(),
+                    ...result.usage
+                };
+                const updatedHistory = [...usageHistory, newUsage];
+                setUsageHistory(updatedHistory);
+                localStorage.setItem('tokenUsageHistory', JSON.stringify(updatedHistory));
+            }
+
             setGeneratedResume(result);
         } catch (err) {
             console.error('Generation error:', err);
@@ -107,9 +129,22 @@ function ResumeGenerator({ masterResume }) {
 
     return (
         <div className="max-w-7xl mx-auto px-4 py-8">
-            <h1 className="text-3xl font-bold text-gray-800 mb-8">
-                Generate Tailored Resume
+            <h1 className="text-3xl font-bold text-gray-800 mb-8 flex justify-between items-center">
+                <span>Generate Tailored Resume</span>
+                <button
+                    onClick={() => setShowAnalytics(!showAnalytics)}
+                    className="text-sm font-medium text-blue-600 hover:text-blue-800 bg-blue-50 px-4 py-2 rounded-lg transition-colors"
+                >
+                    {showAnalytics ? 'Hide Analytics' : '📊 View Token Usage'}
+                </button>
             </h1>
+
+            {showAnalytics && (
+                <UsageTracker
+                    usageHistory={usageHistory}
+                    onClose={() => setShowAnalytics(false)}
+                />
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Left Column - Input */}
