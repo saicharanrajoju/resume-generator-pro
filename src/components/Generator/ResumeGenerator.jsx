@@ -380,6 +380,70 @@ Want to make more changes?`
                                 </div>
                             )}
 
+                            {/* Resume Preview - Expandable */}
+                            <div className="mb-6 border rounded-lg overflow-hidden">
+                                <button
+                                    onClick={() => setShowPreview(!showPreview)}
+                                    className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors bg-white"
+                                >
+                                    <h4 className="font-semibold flex items-center gap-2">
+                                        <span>📄</span>
+                                        <span>Resume Content Preview</span>
+                                    </h4>
+                                    {showPreview ? (
+                                        <ChevronDown className="w-5 h-5 text-gray-400" />
+                                    ) : (
+                                        <ChevronRight className="w-5 h-5 text-gray-400" />
+                                    )}
+                                </button>
+
+                                {showPreview && (
+                                    <div className="border-t p-4 bg-gray-50 max-h-96 overflow-y-auto">
+                                        {/* Summary */}
+                                        {generatedResume.resume.summary && (
+                                            <div className="mb-4">
+                                                <p className="text-xs font-bold text-gray-700 mb-1 uppercase">Summary</p>
+                                                <p className="text-sm text-gray-800 leading-relaxed">{generatedResume.resume.summary}</p>
+                                            </div>
+                                        )}
+
+                                        {/* Skills - First 3 categories */}
+                                        {generatedResume.resume.skills && (
+                                            <div className="mb-4">
+                                                <p className="text-xs font-bold text-gray-700 mb-1 uppercase">Skills</p>
+                                                {Object.entries(generatedResume.resume.skills).slice(0, 3).map(([cat, skills]) => (
+                                                    <p key={cat} className="text-sm mb-1">
+                                                        <span className="font-semibold">{cat}:</span> {Array.isArray(skills) ? skills.join(', ') : skills}
+                                                    </p>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {/* First Job */}
+                                        {generatedResume.resume.experience?.[0] && (
+                                            <div className="mb-4">
+                                                <p className="text-xs font-bold text-gray-700 mb-1 uppercase">First Job</p>
+                                                <p className="text-sm font-semibold">{generatedResume.resume.experience[0].position} at {generatedResume.resume.experience[0].company}</p>
+                                                <ul className="list-disc list-inside text-xs text-gray-700 mt-2 space-y-1">
+                                                    {generatedResume.resume.experience[0].achievements.slice(0, 3).map((ach, i) => (
+                                                        <li key={i}>{ach}</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+
+                                        {/* Education */}
+                                        {generatedResume.resume.education?.[0] && (
+                                            <div>
+                                                <p className="text-xs font-bold text-gray-700 mb-1 uppercase">Education</p>
+                                                <p className="text-sm font-semibold">{generatedResume.resume.education[0].school}</p>
+                                                <p className="text-xs text-gray-600">{generatedResume.resume.education[0].degree} in {generatedResume.resume.education[0].field}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
                             {/* Refinement Chat */}
                             {showRefinementChat && (
                                 <div className="mt-6 border-t pt-6">
