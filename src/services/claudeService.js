@@ -21,7 +21,8 @@ export const claudeService = {
             clearTimeout(timeoutId);
 
             if (!response.ok) {
-                throw new Error('Failed to generate resume');
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.details || errorData.message || errorData.error || 'Failed to generate resume');
             }
 
             return await response.json();

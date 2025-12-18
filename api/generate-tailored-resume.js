@@ -230,7 +230,7 @@ Generate the optimized resume now with TRUE ATS scoring.`;
         if (!response.ok) {
             const errorText = await response.text();
             console.error('Claude API error:', errorText);
-            return res.status(500).json({ error: 'AI service error' });
+            return res.status(500).json({ error: 'AI service error', details: errorText });
         }
 
         const data = await response.json();
@@ -238,7 +238,15 @@ Generate the optimized resume now with TRUE ATS scoring.`;
 
         // Clean and parse JSON response
         const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-        const result = JSON.parse(cleanText);
+        let result;
+
+        try {
+            result = JSON.parse(cleanText);
+        } catch (parseError) {
+            console.error('JSON Parse Error:', parseError);
+            console.error('Raw Text:', cleanText);
+            return res.status(500).json({ error: 'Failed to parse AI response', details: cleanText.substring(0, 200) + '...' });
+        }
 
         // Attach usage data if available
         if (data.usage) {
@@ -250,7 +258,8 @@ Generate the optimized resume now with TRUE ATS scoring.`;
         console.error('API error:', error);
         return res.status(500).json({
             error: 'Server error',
-            message: error.message
+            message: error.message,
+            stack: error.stack
         });
     }
 }
