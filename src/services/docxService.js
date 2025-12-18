@@ -6,16 +6,17 @@ import {
     AlignmentType,
     TabStopType,
     convertInchesToTwip,
-    BorderStyle
+    BorderStyle,
+    ExternalHyperlink
 } from 'docx';
 import { saveAs } from 'file-saver';
 
 /**
- * PERFECT RESUME GENERATOR - ALL ISSUES FIXED
- * - Professional formatting
- * - Times New Roman font
- * - Proper spacing and alignment
- * - Clean structure
+ * PERFECT RESUME GENERATOR - ALL FIXES APPLIED
+ * - Clickable hyperlinks
+ * - Subtle underlines
+ * - Proper spacing (no double spaces)
+ * - Tight bullet spacing
  */
 
 const docxService = {
@@ -45,113 +46,89 @@ const docxService = {
         );
 
         // ============================================
-        // 2. CONTACT LINE (One line, centered)
+        // 2. CONTACT LINE (with REAL clickable hyperlinks)
         // ============================================
-        const contactChildren = [];
-
-        // Full address with zipcode
-        if (personalInfo.address?.city || personalInfo.address?.state) {
-            const location = [
-                personalInfo.address?.city,
-                personalInfo.address?.state,
-                personalInfo.address?.zipCode
-            ].filter(Boolean).join(', ');
-
-            contactChildren.push(
-                new TextRun({
-                    text: location,
-                    size: 22,
-                    font: 'Times New Roman',
-                    color: '000000'
-                })
-            );
-
-            if (personalInfo.phone || personalInfo.email) {
-                contactChildren.push(
-                    new TextRun({
-                        text: ' | ',
-                        size: 22,
-                        font: 'Times New Roman',
-                        color: '000000'
-                    })
-                );
-            }
-        }
-
-        // Phone
-        if (personalInfo.phone) {
-            contactChildren.push(
-                new TextRun({
-                    text: personalInfo.phone,
-                    size: 22,
-                    font: 'Times New Roman',
-                    color: '000000'
-                })
-            );
-
-            if (personalInfo.email) {
-                contactChildren.push(
-                    new TextRun({
-                        text: ' | ',
-                        size: 22,
-                        font: 'Times New Roman',
-                        color: '000000'
-                    })
-                );
-            }
-        }
-
-        // Email (styled as link - blue and underlined)
-        if (personalInfo.email) {
-            contactChildren.push(
-                new TextRun({
-                    text: personalInfo.email,
-                    size: 22,
-                    font: 'Times New Roman',
-                    color: '0563C1', // Blue
-                    underline: {}
-                })
-            );
-
-            if (parsedData.onlinePresence?.linkedin) {
-                contactChildren.push(
-                    new TextRun({
-                        text: ' | ',
-                        size: 22,
-                        font: 'Times New Roman',
-                        color: '000000'
-                    })
-                );
-            }
-        }
-
-        // LinkedIn
-        if (parsedData.onlinePresence?.linkedin) {
-            const linkedinUrl = parsedData.onlinePresence.linkedin;
-            const linkedinDisplay = linkedinUrl.replace('https://', '').replace('http://', '');
-
-            contactChildren.push(
-                new TextRun({
-                    text: 'LinkedIn: ',
-                    size: 22,
-                    font: 'Times New Roman',
-                    color: '000000'
-                })
-            );
-            contactChildren.push(
-                new TextRun({
-                    text: linkedinDisplay,
-                    size: 22,
-                    font: 'Times New Roman',
-                    color: '0563C1', // Blue
-                    underline: {}
-                })
-            );
-        }
-
         sections.push(
             new Paragraph({
-                children: contactChildren,
+                children: [
+                    // City, State, Zip
+                    ...(personalInfo.address?.city || personalInfo.address?.state ? [
+                        new TextRun({
+                            text: [
+                                personalInfo.address?.city,
+                                personalInfo.address?.state,
+                                personalInfo.address?.zipCode
+                            ].filter(Boolean).join(', '),
+                            size: 22,
+                            font: 'Times New Roman',
+                            color: '000000'
+                        }),
+                        new TextRun({
+                            text: ' | ',
+                            size: 22,
+                            font: 'Times New Roman',
+                            color: '000000'
+                        })
+                    ] : []),
+
+                    // Phone
+                    ...(personalInfo.phone ? [
+                        new TextRun({
+                            text: personalInfo.phone,
+                            size: 22,
+                            font: 'Times New Roman',
+                            color: '000000'
+                        }),
+                        new TextRun({
+                            text: ' | ',
+                            size: 22,
+                            font: 'Times New Roman',
+                            color: '000000'
+                        })
+                    ] : []),
+
+                    // Email as REAL hyperlink
+                    ...(personalInfo.email ? [
+                        new ExternalHyperlink({
+                            children: [
+                                new TextRun({
+                                    text: personalInfo.email,
+                                    size: 22,
+                                    font: 'Times New Roman',
+                                    style: 'Hyperlink'
+                                })
+                            ],
+                            link: `mailto:${personalInfo.email}`
+                        }),
+                        new TextRun({
+                            text: ' | ',
+                            size: 22,
+                            font: 'Times New Roman',
+                            color: '000000'
+                        })
+                    ] : []),
+
+                    // LinkedIn as REAL hyperlink
+                    ...(parsedData.onlinePresence?.linkedin ? [
+                        new TextRun({
+                            text: 'LinkedIn: ',
+                            size: 22,
+                            font: 'Times New Roman',
+                            color: '000000'
+                        }),
+                        new ExternalHyperlink({
+                            children: [
+                                new TextRun({
+                                    text: parsedData.onlinePresence.linkedin.replace('https://', '').replace('http://', ''),
+                                    size: 22,
+                                    font: 'Times New Roman',
+                                    style: 'Hyperlink'
+                                })
+                            ],
+                            link: parsedData.onlinePresence.linkedin
+                        })
+                    ] : [])
+                ],
                 alignment: AlignmentType.CENTER,
                 spacing: { after: 240 }
             })
@@ -179,7 +156,7 @@ const docxService = {
                             color: '000000',
                             space: 1,
                             style: BorderStyle.SINGLE,
-                            size: 6
+                            size: 4  // Subtle underline
                         }
                     }
                 })
@@ -195,7 +172,7 @@ const docxService = {
                             color: '000000'
                         })
                     ],
-                    spacing: { after: 120, line: 276 } // 1.15 line spacing
+                    spacing: { after: 120, line: 276 }
                 })
             );
         }
@@ -222,7 +199,7 @@ const docxService = {
                             color: '000000',
                             space: 1,
                             style: BorderStyle.SINGLE,
-                            size: 6
+                            size: 4  // Subtle underline
                         }
                     }
                 })
@@ -274,7 +251,7 @@ const docxService = {
                             color: '000000',
                             space: 1,
                             style: BorderStyle.SINGLE,
-                            size: 6
+                            size: 4  // Subtle underline
                         }
                     }
                 })
@@ -328,14 +305,14 @@ const docxService = {
                         tabStops: [
                             {
                                 type: TabStopType.RIGHT,
-                                position: convertInchesToTwip(7.5) // Correct for 0.5" margins
+                                position: convertInchesToTwip(7.5)
                             }
                         ],
                         spacing: { before: 120, after: 100 }
                     })
                 );
 
-                // Bullets with proper spacing
+                // Bullets with tighter spacing
                 exp.achievements.forEach((achievement) => {
                     sections.push(
                         new Paragraph({
@@ -352,13 +329,14 @@ const docxService = {
                                 left: convertInchesToTwip(0.25),
                                 hanging: convertInchesToTwip(0.25)
                             },
-                            spacing: { after: 80, line: 276 } // 1.15 line spacing
+                            spacing: { after: 60, line: 260 }  // Tighter spacing
                         })
                     );
                 });
 
+                // Single space between jobs (not double)
                 if (index < resumeData.experience.length - 1) {
-                    sections.push(new Paragraph({ text: '', spacing: { after: 120 } }));
+                    sections.push(new Paragraph({ text: '', spacing: { after: 80 } }));
                 }
             });
         }
@@ -385,7 +363,7 @@ const docxService = {
                             color: '000000',
                             space: 1,
                             style: BorderStyle.SINGLE,
-                            size: 6
+                            size: 4  // Subtle underline
                         }
                     }
                 })
@@ -443,7 +421,7 @@ const docxService = {
                                 left: convertInchesToTwip(0.25),
                                 hanging: convertInchesToTwip(0.25)
                             },
-                            spacing: { after: 80, line: 276 }
+                            spacing: { after: 60, line: 260 }  // Tighter spacing
                         })
                     );
                 }
@@ -471,13 +449,14 @@ const docxService = {
                                 left: convertInchesToTwip(0.25),
                                 hanging: convertInchesToTwip(0.25)
                             },
-                            spacing: { after: 80 }
+                            spacing: { after: 60 }
                         })
                     );
                 }
 
+                // Single space between projects
                 if (index < resumeData.projects.length - 1) {
-                    sections.push(new Paragraph({ text: '', spacing: { after: 120 } }));
+                    sections.push(new Paragraph({ text: '', spacing: { after: 80 } }));
                 }
             });
         }
@@ -504,7 +483,7 @@ const docxService = {
                             color: '000000',
                             space: 1,
                             style: BorderStyle.SINGLE,
-                            size: 6
+                            size: 4  // Subtle underline
                         }
                     }
                 })
@@ -552,7 +531,7 @@ const docxService = {
                             color: '000000',
                             space: 1,
                             style: BorderStyle.SINGLE,
-                            size: 6
+                            size: 4  // Subtle underline
                         }
                     }
                 })
@@ -654,7 +633,7 @@ const docxService = {
                 }
 
                 if (index < resumeData.education.length - 1) {
-                    sections.push(new Paragraph({ text: '', spacing: { after: 100 } }));
+                    sections.push(new Paragraph({ text: '', spacing: { after: 80 } }));
                 }
             });
         }

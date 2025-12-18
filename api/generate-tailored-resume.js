@@ -162,7 +162,7 @@ OUTPUT FORMAT (JSON):
     "projects": [
       {
         "name": "Project Name",
-        "date": "Month Year - Month Year (use from master if available)",
+        "date": "Month Year - Month Year (e.g., 'Jan 2024 - May 2024', never just '2024')",
         "description": "Concise description with metrics and technologies integrated naturally",
         "technologies": ["Tech1", "Tech2", "Tech3"]
       }
