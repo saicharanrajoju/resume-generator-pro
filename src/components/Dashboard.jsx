@@ -6,7 +6,6 @@ import MasterResumeUpload from './Profile/MasterResumeUpload';
 import ResumeGenerator from './Generator/ResumeGenerator';
 import UsageTracker from './Generator/UsageTracker';
 import { usageService } from '../services/usageService';
-import { StaggerContainer, StaggerItem, Panel, ScaleButton, FadeIn } from './ui/MotionWrapper';
 
 function Dashboard() {
     const { user, logout, loading: authLoading } = useAuth();
@@ -243,142 +242,141 @@ function DashboardHome({ masterResume, navigate, user, usageHistory = [] }) {
     const uploadDate = new Date(masterResume.uploadDate).toLocaleDateString();
 
     return (
-        <StaggerContainer className="max-w-7xl mx-auto px-4 py-8">
+        <div className="max-w-7xl mx-auto px-4 py-8">
             {/* Master Resume Status Card */}
-            <StaggerItem>
-                <div className="bg-gray-900 text-white rounded-xl p-8 mb-8 border border-gray-800">
-                    <div className="flex items-start justify-between">
-                        <div>
-                            <h2 className="text-3xl font-bold mb-2 tracking-tight">
-                                Welcome back, {personalInfo.firstName || user.displayName || 'there'}
-                            </h2>
-                            <div className="space-y-2 text-gray-400">
-                                <p className="flex items-center gap-2">
-                                    <span className="text-emerald-500">●</span>
-                                    <span className="text-sm font-medium">Master Resume Active</span>
-                                </p>
-                                <p className="text-xs opacity-60">Uploaded on {uploadDate}</p>
-                                {personalInfo.email && <p className="text-xs opacity-60">{personalInfo.email}</p>}
-                            </div>
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg shadow-lg p-8 mb-8">
+                <div className="flex items-start justify-between">
+                    <div>
+                        <h2 className="text-3xl font-bold mb-2">
+                            Welcome back, {personalInfo.firstName || user.displayName || 'there'}!
+                        </h2>
+                        <div className="space-y-2 text-blue-100">
+                            <p className="flex items-center gap-2">
+                                <span className="text-2xl">✓</span>
+                                <span className="text-lg">Master Resume Active</span>
+                            </p>
+                            <p className="text-sm">Uploaded on {uploadDate}</p>
+                            {personalInfo.email && <p className="text-sm">📧 {personalInfo.email}</p>}
                         </div>
-                        <ScaleButton
-                            onClick={() => navigate('/dashboard/update-resume')}
-                            className="bg-white text-gray-900 px-6 py-3 rounded-lg hover:bg-gray-100 transition-colors font-semibold text-sm"
-                        >
-                            Update Resume
-                        </ScaleButton>
                     </div>
+                    <button
+                        onClick={() => navigate('/dashboard/update-resume')}
+                        className="bg-white text-blue-600 px-6 py-2 rounded-lg hover:bg-blue-50 transition-colors font-medium text-sm"
+                    >
+                        Update Resume
+                    </button>
                 </div>
-            </StaggerItem>
+            </div>
 
             {/* Quick Action - Generate Resume */}
-            <StaggerItem>
-                <Panel className="bg-emerald-50 border-emerald-100 p-8 mb-8">
-                    <div className="flex items-center gap-4 mb-6">
-                        <div className="text-4xl">🎯</div>
-                        <div>
-                            <h3 className="text-2xl font-bold text-gray-900 tracking-tight">Generate Tailored Resume</h3>
-                            <p className="text-gray-600">Paste a job description and get an optimized resume in seconds</p>
-                        </div>
+            <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
+                <div className="flex items-center gap-4 mb-6">
+                    <div className="text-5xl">🎯</div>
+                    <div>
+                        <h3 className="text-2xl font-bold text-gray-800">Generate Tailored Resume</h3>
+                        <p className="text-gray-600">Paste a job description and get an optimized resume in seconds</p>
                     </div>
-                    <ScaleButton
-                        onClick={() => navigate('/dashboard/generate')}
-                        className="w-full bg-emerald-600 text-white px-8 py-4 rounded-xl hover:bg-emerald-700 font-bold text-lg shadow-sm"
-                    >
-                        Start Generating →
-                    </ScaleButton>
-                </Panel>
-            </StaggerItem>
+                </div>
+                <button
+                    onClick={() => navigate('/dashboard/generate')}
+                    className="w-full bg-blue-600 text-white px-8 py-4 rounded-lg hover:bg-blue-700 transition-colors font-medium text-lg"
+                >
+                    Start Generating →
+                </button>
+            </div>
 
             {/* Stats Grid */}
-            <StaggerContainer className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8" staggerDelay={0.05}>
-                <StaggerItem>
-                    <Panel className="p-6 cursor-pointer hover:border-emerald-500 transition-colors group" onClick={() => setShowFullAnalytics(true)}>
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="text-2xl group-hover:scale-110 transition-transform">📊</div>
-                            <div className="text-right">
-                                <div className="text-xs text-gray-500 font-medium uppercase tracking-wider">Total Spent</div>
-                                <div className="text-xl font-bold text-gray-900">
-                                    View Stats
-                                </div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setShowFullAnalytics(true)}>
+                    <div className="flex items-center justify-between mb-2">
+                        <div className="text-3xl">📊</div>
+                        <div className="text-right">
+                            <div className="text-xs text-gray-500">Total Spent</div>
+                            <div className="text-xl font-bold text-blue-900">
+                                {/* Simple visual estimate, full details in modal */}
+                                View Stats
                             </div>
                         </div>
-                        <div className="text-emerald-600 font-semibold text-sm group-hover:underline decoration-2 underline-offset-4">Token Usage Analytics</div>
-                    </Panel>
-                </StaggerItem>
+                    </div>
+                    <div className="text-blue-600 font-medium text-sm">Token Usage Analytics</div>
+                    <div className="text-xs text-gray-500 mt-1">Click to view details</div>
+                </div>
 
-                <StaggerItem>
-                    <Panel className="p-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="text-2xl">💼</div>
-                            <div className="text-3xl font-bold text-gray-900">
-                                {workExperience.length}
-                            </div>
+                <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-center justify-between mb-2">
+                        <div className="text-3xl">💼</div>
+                        <div className="text-3xl font-bold text-blue-600">
+                            {workExperience.length}
                         </div>
-                        <div className="text-gray-600 font-medium text-sm">Work Experiences</div>
-                    </Panel>
-                </StaggerItem>
+                    </div>
+                    <div className="text-gray-600 font-medium">Work Experiences</div>
+                    <div className="text-sm text-gray-500 mt-1">in your master resume</div>
+                </div>
 
-                <StaggerItem>
-                    <Panel className="p-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="text-2xl">🚀</div>
-                            <div className="text-3xl font-bold text-gray-900">
-                                {projects.length}
-                            </div>
+                <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-center justify-between mb-2">
+                        <div className="text-3xl">🚀</div>
+                        <div className="text-3xl font-bold text-green-600">
+                            {projects.length}
                         </div>
-                        <div className="text-gray-600 font-medium text-sm">Projects</div>
-                    </Panel>
-                </StaggerItem>
+                    </div>
+                    <div className="text-gray-600 font-medium">Projects</div>
+                    <div className="text-sm text-gray-500 mt-1">ready to showcase</div>
+                </div>
 
-                <StaggerItem>
-                    <Panel className="p-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="text-2xl">🏆</div>
-                            <div className="text-3xl font-bold text-gray-900">
-                                {certifications.length}
-                            </div>
+                <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-center justify-between mb-2">
+                        <div className="text-3xl">🏆</div>
+                        <div className="text-3xl font-bold text-purple-600">
+                            {certifications.length}
                         </div>
-                        <div className="text-gray-600 font-medium text-sm">Certifications</div>
-                    </Panel>
-                </StaggerItem>
-            </StaggerContainer>
+                    </div>
+                    <div className="text-gray-600 font-medium">Certifications</div>
+                    <div className="text-sm text-gray-500 mt-1">to highlight</div>
+                </div>
+            </div>
 
             {/* Analytics Modal */}
             {showFullAnalytics && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                    <FadeIn className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
                         <div className="p-2">
                             <UsageTracker
                                 usageHistory={usageHistory}
                                 onClose={() => setShowFullAnalytics(false)}
                             />
                         </div>
-                    </FadeIn>
+                    </div>
                 </div>
             )}
 
             {/* How It Works */}
-            <StaggerItem>
-                <Panel className="p-8 bg-gray-50 border-gray-200">
-                    <h3 className="text-lg font-bold text-gray-900 mb-6 uppercase tracking-wider text-center">How It Works</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-                        {[
-                            { icon: "📋", title: "1. Paste Job", desc: "Copy the job posting" },
-                            { icon: "🤖", title: "2. AI Analysis", desc: "Claude extracts keywords" },
-                            { icon: "✨", title: "3. Tailoring", desc: "Experience optimized" },
-                            { icon: "📥", title: "4. Download", desc: "DOCX ready to submit" }
-                        ].map((step, i) => (
-                            <div key={i} className="text-center group">
-                                <div className="text-4xl mb-4 grayscale group-hover:grayscale-0 transition-all duration-300 transform group-hover:scale-110">{step.icon}</div>
-                                <div className="font-bold text-gray-900 mb-2">{step.title}</div>
-                                <div className="text-xs text-gray-500 font-medium">{step.desc}</div>
-                            </div>
-                        ))}
+            <div className="bg-white rounded-lg shadow p-8">
+                <h3 className="text-xl font-bold text-gray-800 mb-4">How It Works</h3>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div className="text-center">
+                        <div className="text-4xl mb-3">📋</div>
+                        <div className="font-semibold text-gray-800 mb-2">1. Paste Job Description</div>
+                        <div className="text-sm text-gray-600">Copy the job posting you want to apply for</div>
                     </div>
-                </Panel>
-            </StaggerItem>
-        </StaggerContainer>
+                    <div className="text-center">
+                        <div className="text-4xl mb-3">🤖</div>
+                        <div className="font-semibold text-gray-800 mb-2">2. AI Analyzes</div>
+                        <div className="text-sm text-gray-600">Claude understands requirements and keywords</div>
+                    </div>
+                    <div className="text-center">
+                        <div className="text-4xl mb-3">✨</div>
+                        <div className="font-semibold text-gray-800 mb-2">3. Resume Tailored</div>
+                        <div className="text-sm text-gray-600">Your experience optimized for the role</div>
+                    </div>
+                    <div className="text-center">
+                        <div className="text-4xl mb-3">📥</div>
+                        <div className="font-semibold text-gray-800 mb-2">4. Download & Apply</div>
+                        <div className="text-sm text-gray-600">Professional DOCX ready to submit</div>
+                    </div>
+                </div>
+            </div>
+        </div>
     );
 }
 

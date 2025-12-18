@@ -16,7 +16,6 @@
     "file-saver": "^2.0.5",
     "firebase": "^12.6.0",
     "formidable": "^3.5.4",
-    "framer-motion": "^12.23.26",
     "mammoth": "^1.11.0",
     "pdf-parse": "^2.4.5",
     "react": "^19.2.0",
