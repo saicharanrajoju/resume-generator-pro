@@ -73,10 +73,10 @@ function UsageTracker({ usageHistory, onClose }) {
                 <div className="bg-gray-50 p-4 rounded-lg">
                     <p className="text-sm text-gray-600 font-medium mb-1">Total Tokens</p>
                     <p className="text-2xl font-bold text-gray-900">
-                        {(totalUsage.input + totalUsage.output).toLocaleString()}
+                        {(grandTotalInput + grandTotalOutput).toLocaleString()}
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
-                        In: {totalUsage.input.toLocaleString()} | Out: {totalUsage.output.toLocaleString()}
+                        In: {grandTotalInput.toLocaleString()} | Out: {grandTotalOutput.toLocaleString()}
                     </p>
                 </div>
             </div>
