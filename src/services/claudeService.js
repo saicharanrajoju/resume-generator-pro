@@ -16,7 +16,9 @@ export const claudeService = {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'API error');
+                // Prefer specific message over generic error
+                const errorMessage = errorData.message || errorData.error || 'API error';
+                throw new Error(errorMessage);
             }
 
             const data = await response.json();

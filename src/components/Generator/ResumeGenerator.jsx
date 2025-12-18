@@ -4,7 +4,8 @@ import { claudeService } from '../../services/claudeService';
 import docxService from '../../services/docxService';
 import { usageService } from '../../services/usageService';
 import { useAuth } from '../../hooks/useAuth';
-
+import { motion, AnimatePresence } from 'framer-motion';
+import { FadeIn, Panel, ScaleButton } from '../ui/MotionWrapper';
 function ResumeGenerator({ masterResume }) {
     const { user } = useAuth();
     const [jobDescription, setJobDescription] = useState('');
@@ -151,36 +152,45 @@ function ResumeGenerator({ masterResume }) {
     };
 
     return (
-        <div className="max-w-7xl mx-auto px-4 py-8">
-            <h1 className="text-3xl font-bold text-gray-800 mb-8 flex justify-between items-center">
-                <span>Generate Tailored Resume</span>
-                <button
+        <FadeIn className="max-w-7xl mx-auto px-4 py-8">
+            <div className="flex justify-between items-center mb-8">
+                <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Generate Tailored Resume</h1>
+                <ScaleButton
                     onClick={() => setShowAnalytics(!showAnalytics)}
-                    className="text-sm font-medium text-blue-600 hover:text-blue-800 bg-blue-50 px-4 py-2 rounded-lg transition-colors"
+                    className="text-sm font-medium text-emerald-600 hover:text-emerald-800 bg-emerald-50 px-4 py-2 rounded-lg transition-colors"
                 >
                     {showAnalytics ? 'Hide Analytics' : '📊 View Token Usage'}
-                </button>
-            </h1>
+                </ScaleButton>
+            </div>
 
-            {showAnalytics && (
-                <UsageTracker
-                    usageHistory={usageHistory}
-                    onClose={() => setShowAnalytics(false)}
-                />
-            )}
+            <AnimatePresence>
+                {showAnalytics && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden mb-8"
+                    >
+                        <UsageTracker
+                            usageHistory={usageHistory}
+                            onClose={() => setShowAnalytics(false)}
+                        />
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Left Column - Input */}
                 <div>
-                    <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-                        <h2 className="text-xl font-semibold mb-4">Job Description</h2>
+                    <Panel className="p-6 mb-6 shadow-sm hover:shadow-md transition-shadow">
+                        <h2 className="text-xl font-semibold mb-4 text-gray-900">1. Job Description</h2>
                         <textarea
                             value={jobDescription}
                             onChange={(e) => setJobDescription(e.target.value)}
                             placeholder="Paste the complete job description here..."
-                            className="w-full h-96 border rounded-lg p-4 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                            className="w-full h-96 border border-gray-200 rounded-lg p-4 focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none bg-gray-50 transition-all"
                         />
-                    </div>
+                    </Panel>
 
                     {/* Step 2: Job-Specific Details (Optional) */}
                     {shouldShowJobDetails() && !generatedResume && (
@@ -280,20 +290,44 @@ function ResumeGenerator({ masterResume }) {
                         </div>
                     )}
 
-                    <button
+                    <motion.button
+                        layout
                         onClick={handleGenerate}
                         disabled={!jobDescription.trim() || generating}
-                        className="w-full bg-blue-600 text-white px-8 py-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium text-lg transition-colors"
+                        className={`w-full py-4 rounded-xl font-bold text-lg shadow-sm relative overflow-hidden ${!jobDescription.trim() ? 'bg-gray-200 text-gray-400' : 'bg-emerald-600 text-white'
+                            }`}
+                        whileHover={!generating && jobDescription.trim() ? { scale: 1.02 } : {}}
+                        whileTap={!generating && jobDescription.trim() ? { scale: 0.98 } : {}}
+                        animate={generating ? {
+                            width: '100%',
+                            backgroundColor: '#059669', // emerald-600
+                            transition: { duration: 0.3 }
+                        } : {}}
                     >
-                        {generating ? (
-                            <span className="flex items-center justify-center gap-2">
-                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                                Generating...
-                            </span>
-                        ) : (
-                            'Generate Tailored Resume'
-                        )}
-                    </button>
+                        <AnimatePresence mode='wait'>
+                            {generating ? (
+                                <motion.div
+                                    key="loading"
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    className="flex items-center justify-center gap-3"
+                                >
+                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    <span>Crafting Resume...</span>
+                                </motion.div>
+                            ) : (
+                                <motion.div
+                                    key="idle"
+                                    initial={{ opacity: 0, y: -10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: 10 }}
+                                >
+                                    Generate Tailored Resume
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </motion.button>
                 </div>
 
                 {/* Right Column - Output */}
@@ -485,7 +519,7 @@ function ResumeGenerator({ masterResume }) {
                     )}
                 </div>
             </div>
-        </div>
+        </FadeIn>
     );
 }
 
