@@ -6,15 +6,20 @@ const PRICING = {
     OUTPUT_PER_1K: 0.015
 };
 
-// Data provided by user from billing console (Lead up to Dec 18, 2025)
-const LEGACY_USAGE = {
-    input: 119565,
-    output: 55293,
-    cost: 1.188 // Calculated approx
-};
+// Data provided by user from billing console
+const LEGACY_HISTORY = [
+    { timestamp: '2025-12-18T00:00:00.000Z', input_tokens: 6419, output_tokens: 2000, model: 'claude-sonnet-4-20250514' },
+    { timestamp: '2025-12-17T00:00:00.000Z', input_tokens: 62061, output_tokens: 25941, model: 'claude-sonnet-4-20250514' },
+    { timestamp: '2025-12-16T00:00:00.000Z', input_tokens: 39790, output_tokens: 19226, model: 'claude-sonnet-4-20250514' },
+    { timestamp: '2025-12-04T00:00:00.000Z', input_tokens: 4739, output_tokens: 4068, model: 'claude-sonnet-4-20250514' },
+    { timestamp: '2025-12-03T00:00:00.000Z', input_tokens: 6556, output_tokens: 4058, model: 'claude-sonnet-4-20250514' }
+];
 
 function UsageTracker({ usageHistory, onClose }) {
-    const totalUsage = usageHistory.reduce((acc, curr) => ({
+    // Combine real-time history with legacy history
+    const allHistory = [...usageHistory, ...LEGACY_HISTORY];
+
+    const totalUsage = allHistory.reduce((acc, curr) => ({
         input: acc.input + (curr.input_tokens || 0),
         output: acc.output + (curr.output_tokens || 0),
         count: acc.count + 1
@@ -24,17 +29,10 @@ function UsageTracker({ usageHistory, onClose }) {
         count: 0
     });
 
-    // Add legacy usage to totals
-    const grandTotalInput = totalUsage.input + LEGACY_USAGE.input;
-    const grandTotalOutput = totalUsage.output + LEGACY_USAGE.output;
-
-    // Calculate current session cost
-    const currentSessionCost = (
+    const totalCost = (
         (totalUsage.input / 1000 * PRICING.INPUT_PER_1K) +
         (totalUsage.output / 1000 * PRICING.OUTPUT_PER_1K)
     );
-
-    const totalCost = currentSessionCost + LEGACY_USAGE.cost;
 
     return (
         <div className="bg-white rounded-lg shadow-lg p-6 mb-6 border border-gray-200">
@@ -73,10 +71,10 @@ function UsageTracker({ usageHistory, onClose }) {
                 <div className="bg-gray-50 p-4 rounded-lg">
                     <p className="text-sm text-gray-600 font-medium mb-1">Total Tokens</p>
                     <p className="text-2xl font-bold text-gray-900">
-                        {(grandTotalInput + grandTotalOutput).toLocaleString()}
+                        {(totalUsage.input + totalUsage.output).toLocaleString()}
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
-                        In: {grandTotalInput.toLocaleString()} | Out: {grandTotalOutput.toLocaleString()}
+                        In: {totalUsage.input.toLocaleString()} | Out: {totalUsage.output.toLocaleString()}
                     </p>
                 </div>
             </div>
@@ -94,7 +92,7 @@ function UsageTracker({ usageHistory, onClose }) {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            {usageHistory.slice().reverse().slice(0, 10).map((entry, i) => {
+                            {allHistory.slice(0, 10).map((entry, i) => {
                                 const cost = (
                                     (entry.input_tokens / 1000 * PRICING.INPUT_PER_1K) +
                                     (entry.output_tokens / 1000 * PRICING.OUTPUT_PER_1K)
