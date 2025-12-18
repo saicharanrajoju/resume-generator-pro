@@ -236,16 +236,26 @@ Generate the optimized resume now with TRUE ATS scoring.`;
         const data = await response.json();
         const text = data.content[0].text;
 
-        // Clean and parse JSON response
-        const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        // Locate the first '{' and last '}' to extract the JSON object
+        const firstBrace = text.indexOf('{');
+        const lastBrace = text.lastIndexOf('}');
+
+        if (firstBrace === -1 || lastBrace === -1) {
+            console.error('No JSON object found in response:', text);
+            return res.status(500).json({ error: 'AI response did not contain JSON', details: text.substring(0, 200) + '...' });
+        }
+
+        const cleanText = text.substring(firstBrace, lastBrace + 1);
         let result;
 
         try {
             result = JSON.parse(cleanText);
         } catch (parseError) {
             console.error('JSON Parse Error:', parseError);
-            console.error('Raw Text:', cleanText);
-            return res.status(500).json({ error: 'Failed to parse AI response', details: cleanText.substring(0, 200) + '...' });
+            console.error('Extracted Text:', cleanText);
+            // Attempt to fix common JSON issues if standard parse fails (e.g. trailing commas?)
+            // For now, fail loudly so we can see the issue
+            return res.status(500).json({ error: 'Failed to parse extracted JSON', details: cleanText.substring(0, 200) + '...' });
         }
 
         // Attach usage data if available
