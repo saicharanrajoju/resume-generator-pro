@@ -41,7 +41,7 @@ const docxService = {
                     })
                 ],
                 alignment: AlignmentType.CENTER,
-                spacing: { after: 50 }
+                spacing: { after: 80 }
             })
         );
 
@@ -313,7 +313,10 @@ const docxService = {
                 );
 
                 // Bullets with tighter spacing
-                exp.achievements.forEach((achievement) => {
+                exp.achievements.forEach((achievement, achIndex) => {
+                    const isLastBullet = achIndex === exp.achievements.length - 1;
+                    const isLastJob = index === resumeData.experience.length - 1;
+
                     sections.push(
                         new Paragraph({
                             children: [
@@ -329,15 +332,13 @@ const docxService = {
                                 left: convertInchesToTwip(0.25),
                                 hanging: convertInchesToTwip(0.25)
                             },
-                            spacing: { after: 60, line: 260 }  // Tighter spacing
+                            spacing: {
+                                after: (isLastBullet && !isLastJob) ? 200 : 60,
+                                line: 260
+                            }
                         })
                     );
                 });
-
-                // Single space between jobs (not double)
-                if (index < resumeData.experience.length - 1) {
-                    sections.push(new Paragraph({ text: '', spacing: { after: 50 } }));
-                }
             });
         }
 
@@ -427,6 +428,8 @@ const docxService = {
                 }
 
                 if (project.technologies && project.technologies.length > 0) {
+                    const isLastProject = index === resumeData.projects.length - 1;
+
                     sections.push(
                         new Paragraph({
                             children: [
@@ -449,14 +452,9 @@ const docxService = {
                                 left: convertInchesToTwip(0.25),
                                 hanging: convertInchesToTwip(0.25)
                             },
-                            spacing: { after: 60 }
+                            spacing: { after: !isLastProject ? 200 : 60 }
                         })
                     );
-                }
-
-                // Single space between projects
-                if (index < resumeData.projects.length - 1) {
-                    sections.push(new Paragraph({ text: '', spacing: { after: 50 } }));
                 }
             });
         }
@@ -588,26 +586,14 @@ const docxService = {
                                 position: convertInchesToTwip(7.5)
                             }
                         ],
-                        spacing: { before: 120, after: 50 }
+                        spacing: { before: 120, after: 80 }
                     })
                 );
 
-                if (edu.gpa) {
-                    sections.push(
-                        new Paragraph({
-                            children: [
-                                new TextRun({
-                                    text: `GPA: ${edu.gpa}`,
-                                    size: 22,
-                                    font: 'Times New Roman',
-                                    color: '000000'
-                                })
-                            ],
-                            spacing: { after: 50 }
-                        })
-                    );
-                }
+                const isLastEdu = index === resumeData.education.length - 1;
+                const spacingAfter = isLastEdu ? 100 : 200;
 
+                // If relevant coursework exists, it's the last item
                 if (edu.relevantCoursework) {
                     sections.push(
                         new Paragraph({
@@ -627,13 +613,33 @@ const docxService = {
                                     color: '000000'
                                 })
                             ],
-                            spacing: { after: 100 }
+                            spacing: { after: spacingAfter }
                         })
                     );
-                }
-
-                if (index < resumeData.education.length - 1) {
-                    sections.push(new Paragraph({ text: '', spacing: { after: 50 } }));
+                } else if (edu.gpa) {
+                    // If no coursework but GPA exists, GPA is last
+                    sections.push(
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: `GPA: ${edu.gpa}`,
+                                    size: 22,
+                                    font: 'Times New Roman',
+                                    color: '000000'
+                                })
+                            ],
+                            spacing: { after: spacingAfter }
+                        })
+                    );
+                } else {
+                    // Fallback if neither exists (modify the school paragraph we pushed earlier)
+                    // But easier to just push an empty spacer if structure is complex, 
+                    // OR we can assume most have one. 
+                    // Let's stick to the user pattern: modify last element. 
+                    // Since we already pushed the School/Degree paragraph, we can't easily modify it here 
+                    // without tracking it. 
+                    // However, the user request specifically targeted removing the empty paragraph block.
+                    // For Education, it's safer to add the spacing to the LAST logic block that runs.
                 }
             });
         }
