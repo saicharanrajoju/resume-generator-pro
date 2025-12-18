@@ -20,6 +20,22 @@ function ResumeGenerator({ masterResume }) {
         jobLocations: {},
         projectDates: {}
     });
+    const shouldShowJobDetails = () => {
+        if (!jobDescription || jobDescription.trim().length < 100) {
+            return false;
+        }
+
+        const jobsMissingLocation = masterResume.parsedData.workExperience?.some(
+            job => !job.location
+        ) ?? false;
+
+        const projectsMissingDates = masterResume.parsedData.projects?.some(
+            proj => !proj.date
+        ) ?? false;
+
+        return jobsMissingLocation || projectsMissingDates;
+    };
+
 
     // Usage Tracking
     const [showAnalytics, setShowAnalytics] = useState(false);
@@ -167,7 +183,7 @@ function ResumeGenerator({ masterResume }) {
                     </div>
 
                     {/* Step 2: Job-Specific Details (Optional) */}
-                    {jobDescription && !generatedResume && (
+                    {shouldShowJobDetails() && !generatedResume && (
                         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6">
                             <div className="flex items-center justify-between mb-3">
                                 <div>
@@ -315,6 +331,27 @@ function ResumeGenerator({ masterResume }) {
                                         <p className="text-sm text-gray-700">
                                             <span className="font-semibold">Keyword Match:</span> {generatedResume.keywordAnalysis.matchedInResume} out of {generatedResume.keywordAnalysis.totalJDKeywords} keywords ({generatedResume.keywordAnalysis.matchRate})
                                         </p>
+                                    </div>
+                                )}
+
+                                {generatedResume.atsScore < 90 && (
+                                    <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                                        <h4 className="font-semibold text-orange-800 mb-2">
+                                            💡 Want to Improve Your Score?
+                                        </h4>
+                                        <p className="text-sm text-gray-700 mb-3">
+                                            Your score is below 90%. Try regenerating with more aggressive keyword matching.
+                                        </p>
+                                        <button
+                                            onClick={() => {
+                                                const enhanced = `${jobDescription}\n\nCRITICAL: Score MUST be 95%+. Be EXTREMELY aggressive with keywords.`;
+                                                setJobDescription(enhanced);
+                                                handleGenerate();
+                                            }}
+                                            className="w-full bg-orange-600 text-white py-2 px-4 rounded-lg hover:bg-orange-700 text-sm"
+                                        >
+                                            🔄 Regenerate (More Aggressive)
+                                        </button>
                                     </div>
                                 )}
                             </div>

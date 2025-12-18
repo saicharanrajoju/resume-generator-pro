@@ -12,6 +12,8 @@ function MasterResumeUpload({ existingResume, onComplete }) {
     const [error, setError] = useState(null);
 
     // Profile completion state
+    const [showMasterDetails, setShowMasterDetails] = useState(false);
+    const [showJsonEdit, setShowJsonEdit] = useState(false);
     const [showProfileDetails, setShowProfileDetails] = useState(false);
     const [fillZipcode, setFillZipcode] = useState(false);
     const [fillEducation, setFillEducation] = useState(false);
@@ -56,8 +58,13 @@ function MasterResumeUpload({ existingResume, onComplete }) {
             // Save to Firestore
             await masterResumeService.saveMasterResume(user.uid, masterResumeData);
 
+
             setMasterResume(masterResumeData);
-            setShowProfileDetails(true); // Show profile completion
+
+            const missing = getMissingProfileData(masterResumeData); // Pass data directly
+            if (missing && missing.length > 0) {
+                setShowProfileDetails(true);
+            }
 
         } catch (err) {
             console.error('Upload error:', err);
@@ -67,6 +74,27 @@ function MasterResumeUpload({ existingResume, onComplete }) {
         }
     };
 
+    const getMissingProfileData = (resumeData) => {
+        const resume = resumeData || masterResume;
+        if (!resume) return null;
+
+        const missing = [];
+
+        if (!resume.parsedData.personalInfo.address?.zipCode) {
+            missing.push('zipcode');
+        }
+
+        if (resume.parsedData.education?.some(edu => !edu.field)) {
+            missing.push('education');
+        }
+
+        const linkedin = resume.parsedData.onlinePresence?.linkedin;
+        if (linkedin && linkedin.length > 40) {
+            missing.push('linkedin');
+        }
+
+        return missing;
+    };
     const parseResume = (text) => {
         // Basic parsing - you should implement proper parsing logic
         return {
@@ -212,7 +240,63 @@ function MasterResumeUpload({ existingResume, onComplete }) {
                     </label>
                 </div>
             )}
+            {/* Master Resume Details Viewer - ADD THIS ENTIRE BLOCK */}
+            {masterResume && (
+                <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-xl font-semibold">Master Resume Details</h3>
+                        <button
+                            onClick={() => setShowMasterDetails(!showMasterDetails)}
+                            className="text-blue-600 hover:text-blue-700 font-medium"
+                        >
+                            {showMasterDetails ? '▼ Hide' : '▶ View Details'}
+                        </button>
+                    </div>
 
+                    {showMasterDetails && (
+                        <div>
+                            <div className="space-y-3 text-sm">
+                                <div><strong>Name:</strong> {masterResume.parsedData.personalInfo.firstName} {masterResume.parsedData.personalInfo.lastName}</div>
+                                <div><strong>Email:</strong> {masterResume.parsedData.personalInfo.email}</div>
+                                <div><strong>Work Experience:</strong> {masterResume.parsedData.workExperience?.length || 0} jobs</div>
+                                <div><strong>Projects:</strong> {masterResume.parsedData.projects?.length || 0}</div>
+                                <div><strong>Education:</strong> {masterResume.parsedData.education?.length || 0}</div>
+                            </div>
+
+                            <button
+                                onClick={() => setShowJsonEdit(!showJsonEdit)}
+                                className="mt-4 text-sm text-blue-600 hover:text-blue-700"
+                            >
+                                {showJsonEdit ? '✓ Hide JSON' : '{ } View/Edit as JSON'}
+                            </button>
+
+                            {showJsonEdit && (
+                                <div className="mt-2">
+                                    <textarea
+                                        value={JSON.stringify(masterResume.parsedData, null, 2)}
+                                        className="w-full h-96 border rounded p-4 font-mono text-xs bg-gray-50"
+                                        onChange={(e) => {
+                                            try {
+                                                const edited = JSON.parse(e.target.value);
+                                                setMasterResume({ ...masterResume, parsedData: edited });
+                                            } catch (err) { }
+                                        }}
+                                    />
+                                    <button
+                                        onClick={async () => {
+                                            await masterResumeService.saveMasterResume(user.uid, masterResume);
+                                            alert('✓ Saved!');
+                                        }}
+                                        className="mt-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                                    >
+                                        Save Changes
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
             {/* Profile Completion (Step 1) */}
             {masterResume && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
