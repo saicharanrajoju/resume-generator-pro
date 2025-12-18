@@ -2,6 +2,14 @@ import { useState, useEffect } from 'react';
 import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
 
 function MasterResumeEditor({ masterResume, onSave }) {
+    // Debug logging to check data
+    console.log('=== MasterResumeEditor Debug ===');
+    console.log('masterResume prop:', masterResume);
+    console.log('parsedData:', masterResume?.parsedData);
+    console.log('education:', masterResume?.parsedData?.education);
+    console.log('workExperience:', masterResume?.parsedData?.workExperience);
+    console.log('projects:', masterResume?.parsedData?.projects);
+
     const [formData, setFormData] = useState(masterResume.parsedData);
     const [additionalInstructions, setAdditionalInstructions] = useState(
         masterResume.additionalInstructions || ''
