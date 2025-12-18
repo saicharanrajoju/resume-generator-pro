@@ -2,15 +2,82 @@ import { useState, useEffect } from 'react';
 import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
 
 function MasterResumeEditor({ masterResume, onSave }) {
-    // Debug logging to check data
-    console.log('=== MasterResumeEditor Debug ===');
-    console.log('masterResume prop:', masterResume);
-    console.log('parsedData:', masterResume?.parsedData);
-    console.log('education:', masterResume?.parsedData?.education);
-    console.log('workExperience:', masterResume?.parsedData?.workExperience);
-    console.log('projects:', masterResume?.parsedData?.projects);
+    // Transform Firebase data structure to editor structure
+    const transformToEditorFormat = (data) => {
+        if (!data) return data;
 
-    const [formData, setFormData] = useState(masterResume.parsedData);
+        return {
+            ...data,
+            education: data.education?.map(edu => ({
+                school: edu.institution || edu.school || '',
+                degree: edu.degree || '',
+                field: edu.fieldOfStudy || edu.field || '',
+                year: edu.endDate || edu.year || '',
+                gpa: edu.gpa || '',
+                relevantCoursework: edu.relevantCoursework || ''
+            })) || [],
+            workExperience: data.workExperience?.map(job => ({
+                position: job.position || '',
+                company: job.company || '',
+                location: job.location || '',
+                period: job.period || (job.startDate && job.endDate ? `${job.startDate} - ${job.endDate}` : ''),
+                achievements: job.achievements || job.responsibilities || []
+            })) || [],
+            projects: data.projects?.map(project => ({
+                name: project.name || '',
+                date: project.date || (project.endDate ? project.endDate : ''),
+                description: project.description || '',
+                technologies: project.technologies || []
+            })) || [],
+            certifications: data.certifications?.map(cert => ({
+                name: cert.name || '',
+                date: cert.date || cert.year || ''
+            })) || []
+        };
+    };
+
+    //Transform editor format back to Firebase format for saving
+    const transformToFirebaseFormat = (editorData) => {
+        return {
+            ...editorData,
+            education: editorData.education?.map(edu => ({
+                institution: edu.school,
+                degree: edu.degree,
+                fieldOfStudy: edu.field,
+                endDate: edu.year,
+                gpa: edu.gpa,
+                relevantCoursework: edu.relevantCoursework,
+                startDate: ''
+            })) || [],
+            workExperience: editorData.workExperience?.map(job => {
+                const periodParts = job.period?.split(' - ') || [];
+                return {
+                    company: job.company,
+                    position: job.position,
+                    location: job.location,
+                    startDate: periodParts[0] || '',
+                    endDate: periodParts[1] || '',
+                    responsibilities: Array.isArray(job.achievements) ? job.achievements : (job.achievements?.split('\n') || []),
+                    employmentType: 'Full-time'
+                };
+            }) || [],
+            projects: editorData.projects?.map(project => ({
+                name: project.name,
+                description: project.description,
+                technologies: Array.isArray(project.technologies)
+                    ? project.technologies
+                    : (project.technologies?.split(',').map(t => t.trim()) || []),
+                startDate: '',
+                endDate: project.date || ''
+            })) || [],
+            certifications: editorData.certifications?.map(cert => ({
+                name: cert.name,
+                date: cert.date
+            })) || []
+        };
+    };
+
+    const [formData, setFormData] = useState(transformToEditorFormat(masterResume.parsedData));
     const [additionalInstructions, setAdditionalInstructions] = useState(
         masterResume.additionalInstructions || ''
     );
@@ -246,7 +313,7 @@ function MasterResumeEditor({ masterResume, onSave }) {
         try {
             const updatedResume = {
                 ...masterResume,
-                parsedData: formData,
+                parsedData: transformToFirebaseFormat(formData),
                 additionalInstructions
             };
             await onSave(updatedResume);
