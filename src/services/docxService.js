@@ -41,7 +41,7 @@ const docxService = {
                     })
                 ],
                 alignment: AlignmentType.CENTER,
-                spacing: { after: 80 }
+                spacing: { after: 50 }
             })
         );
 
@@ -336,7 +336,7 @@ const docxService = {
 
                 // Single space between jobs (not double)
                 if (index < resumeData.experience.length - 1) {
-                    sections.push(new Paragraph({ text: '', spacing: { after: 80 } }));
+                    sections.push(new Paragraph({ text: '', spacing: { after: 50 } }));
                 }
             });
         }
@@ -456,7 +456,7 @@ const docxService = {
 
                 // Single space between projects
                 if (index < resumeData.projects.length - 1) {
-                    sections.push(new Paragraph({ text: '', spacing: { after: 80 } }));
+                    sections.push(new Paragraph({ text: '', spacing: { after: 50 } }));
                 }
             });
         }
@@ -588,7 +588,7 @@ const docxService = {
                                 position: convertInchesToTwip(7.5)
                             }
                         ],
-                        spacing: { before: 120, after: 80 }
+                        spacing: { before: 120, after: 50 }
                     })
                 );
 
@@ -603,7 +603,7 @@ const docxService = {
                                     color: '000000'
                                 })
                             ],
-                            spacing: { after: 80 }
+                            spacing: { after: 50 }
                         })
                     );
                 }
@@ -633,7 +633,7 @@ const docxService = {
                 }
 
                 if (index < resumeData.education.length - 1) {
-                    sections.push(new Paragraph({ text: '', spacing: { after: 80 } }));
+                    sections.push(new Paragraph({ text: '', spacing: { after: 50 } }));
                 }
             });
         }
