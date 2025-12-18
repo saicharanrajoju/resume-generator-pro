@@ -4,12 +4,15 @@ import { useAuth } from '../hooks/useAuth';
 import { masterResumeService } from '../services/masterResumeService';
 import MasterResumeUpload from './Profile/MasterResumeUpload';
 import ResumeGenerator from './Generator/ResumeGenerator';
+import UsageTracker from './Generator/UsageTracker';
+import { usageService } from '../services/usageService';
 
 function Dashboard() {
     const { user, logout, loading: authLoading } = useAuth();
     const navigate = useNavigate();
     const [masterResume, setMasterResume] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [usageHistory, setUsageHistory] = useState([]);
 
     useEffect(() => {
         console.log('Dashboard useEffect - authLoading:', authLoading, 'user:', user);
@@ -18,6 +21,7 @@ function Dashboard() {
         if (user && !authLoading) {
             console.log('Loading master resume for user:', user.uid);
             loadMasterResume();
+            loadUsageHistory();
         } else if (!authLoading && !user) {
             // User is not authenticated, redirect to login
             console.log('No user, redirecting to login');
@@ -44,6 +48,16 @@ function Dashboard() {
             console.error('Error loading master resume:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const loadUsageHistory = async () => {
+        if (!user?.uid) return;
+        try {
+            const history = await usageService.getUsageHistory(user.uid);
+            setUsageHistory(history);
+        } catch (error) {
+            console.error('Error loading usage history:', error);
         }
     };
 
@@ -128,6 +142,7 @@ function Dashboard() {
                             masterResume={masterResume}
                             navigate={navigate}
                             user={user}
+                            usageHistory={usageHistory}
                         />
                     }
                 />
@@ -171,7 +186,8 @@ function Dashboard() {
 }
 
 // Dashboard Home Component
-function DashboardHome({ masterResume, navigate, user }) {
+function DashboardHome({ masterResume, navigate, user, usageHistory = [] }) {
+    const [showFullAnalytics, setShowFullAnalytics] = useState(false);
     if (!masterResume) {
         return (
             <div className="max-w-4xl mx-auto px-4 py-12">
@@ -270,7 +286,22 @@ function DashboardHome({ masterResume, navigate, user }) {
             </div>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setShowFullAnalytics(true)}>
+                    <div className="flex items-center justify-between mb-2">
+                        <div className="text-3xl">📊</div>
+                        <div className="text-right">
+                            <div className="text-xs text-gray-500">Total Spent</div>
+                            <div className="text-xl font-bold text-blue-900">
+                                {/* Simple visual estimate, full details in modal */}
+                                View Stats
+                            </div>
+                        </div>
+                    </div>
+                    <div className="text-blue-600 font-medium text-sm">Token Usage Analytics</div>
+                    <div className="text-xs text-gray-500 mt-1">Click to view details</div>
+                </div>
+
                 <div className="bg-white rounded-lg shadow p-6">
                     <div className="flex items-center justify-between mb-2">
                         <div className="text-3xl">💼</div>
@@ -304,6 +335,20 @@ function DashboardHome({ masterResume, navigate, user }) {
                     <div className="text-sm text-gray-500 mt-1">to highlight</div>
                 </div>
             </div>
+
+            {/* Analytics Modal */}
+            {showFullAnalytics && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                        <div className="p-2">
+                            <UsageTracker
+                                usageHistory={usageHistory}
+                                onClose={() => setShowFullAnalytics(false)}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* How It Works */}
             <div className="bg-white rounded-lg shadow p-8">

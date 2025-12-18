@@ -2,8 +2,11 @@ import { useState, useEffect } from 'react';
 import UsageTracker from './UsageTracker';
 import { claudeService } from '../../services/claudeService';
 import docxService from '../../services/docxService';
+import { usageService } from '../../services/usageService';
+import { useAuth } from '../../hooks/useAuth';
 
 function ResumeGenerator({ masterResume }) {
+    const { user } = useAuth();
     const [jobDescription, setJobDescription] = useState('');
     const [generatedResume, setGeneratedResume] = useState(null);
     const [generating, setGenerating] = useState(false);
@@ -23,11 +26,16 @@ function ResumeGenerator({ masterResume }) {
     const [usageHistory, setUsageHistory] = useState([]);
 
     useEffect(() => {
-        const savedUsage = localStorage.getItem('tokenUsageHistory');
-        if (savedUsage) {
-            setUsageHistory(JSON.parse(savedUsage));
+        if (user?.uid) {
+            loadUsageHistory();
         }
-    }, []);
+    }, [user]);
+
+    const loadUsageHistory = async () => {
+        if (!user?.uid) return;
+        const history = await usageService.getUsageHistory(user.uid);
+        setUsageHistory(history);
+    };
 
     const updateJobLocation = (index, value) => {
         setJobSpecificData(prev => ({
@@ -81,13 +89,12 @@ function ResumeGenerator({ masterResume }) {
             );
 
             if (result.usage) {
-                const newUsage = {
-                    timestamp: new Date().toISOString(),
-                    ...result.usage
-                };
-                const updatedHistory = [...usageHistory, newUsage];
-                setUsageHistory(updatedHistory);
-                localStorage.setItem('tokenUsageHistory', JSON.stringify(updatedHistory));
+                // Add to firestore
+                if (user?.uid) {
+                    await usageService.addUsage(user.uid, result.usage);
+                    // Refresh local history
+                    loadUsageHistory();
+                }
             }
 
             setGeneratedResume(result);

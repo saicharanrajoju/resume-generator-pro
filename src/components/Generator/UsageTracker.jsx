@@ -6,17 +6,35 @@ const PRICING = {
     OUTPUT_PER_1K: 0.015
 };
 
+// Data provided by user from billing console (Lead up to Dec 18, 2025)
+const LEGACY_USAGE = {
+    input: 119565,
+    output: 55293,
+    cost: 1.188 // Calculated approx
+};
+
 function UsageTracker({ usageHistory, onClose }) {
     const totalUsage = usageHistory.reduce((acc, curr) => ({
         input: acc.input + (curr.input_tokens || 0),
         output: acc.output + (curr.output_tokens || 0),
         count: acc.count + 1
-    }), { input: 0, output: 0, count: 0 });
+    }), {
+        input: 0,
+        output: 0,
+        count: 0
+    });
 
-    const totalCost = (
+    // Add legacy usage to totals
+    const grandTotalInput = totalUsage.input + LEGACY_USAGE.input;
+    const grandTotalOutput = totalUsage.output + LEGACY_USAGE.output;
+
+    // Calculate current session cost
+    const currentSessionCost = (
         (totalUsage.input / 1000 * PRICING.INPUT_PER_1K) +
         (totalUsage.output / 1000 * PRICING.OUTPUT_PER_1K)
     );
+
+    const totalCost = currentSessionCost + LEGACY_USAGE.cost;
 
     return (
         <div className="bg-white rounded-lg shadow-lg p-6 mb-6 border border-gray-200">
@@ -24,12 +42,14 @@ function UsageTracker({ usageHistory, onClose }) {
                 <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                     📊 Token Usage Analytics
                 </h3>
-                <button
-                    onClick={onClose}
-                    className="text-gray-500 hover:text-gray-700"
-                >
-                    ✕
-                </button>
+                {onClose && (
+                    <button
+                        onClick={onClose}
+                        className="text-gray-500 hover:text-gray-700"
+                    >
+                        ✕
+                    </button>
+                )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
