@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronDown, ChevronRight, Plus, Trash2, Upload } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, Trash2, Upload, Clipboard, X } from 'lucide-react';
 import resumeParserService from '../../services/resumeParserService';
 
 function MasterResumeEditor({ masterResume, onSave }) {
@@ -88,6 +88,10 @@ function MasterResumeEditor({ masterResume, onSave }) {
     const [successMessage, setSuccessMessage] = useState('');
     const fileInputRef = useRef(null);
 
+    // Paste Modal State
+    const [showPasteModal, setShowPasteModal] = useState(false);
+    const [resumeText, setResumeText] = useState('');
+
     // Collapsible state
     const [expandedSections, setExpandedSections] = useState({
         personal: true,
@@ -132,7 +136,7 @@ function MasterResumeEditor({ masterResume, onSave }) {
             const parsedData = await resumeParserService.parseResumeFile(file);
             setFormData(transformToEditorFormat(parsedData));
             setSuccessMessage('Resume uploaded and parsed successfully! Please review changes and save.');
-            
+
             // Expand all sections to show new data
             setExpandedSections({
                 personal: true,
@@ -142,7 +146,7 @@ function MasterResumeEditor({ masterResume, onSave }) {
                 education: true,
                 additional: true
             });
-            
+
         } catch (error) {
             console.error('Upload error:', error);
             setValidationError('Failed to parse resume. Please ensure it is a valid DOCX file.');
@@ -151,6 +155,43 @@ function MasterResumeEditor({ masterResume, onSave }) {
             if (fileInputRef.current) {
                 fileInputRef.current.value = '';
             }
+        }
+    };
+
+    const handleTextParse = async () => {
+        if (!resumeText.trim() || resumeText.length < 50) {
+            setValidationError('Please enter meaningful resume text to parse.');
+            return;
+        }
+
+        try {
+            setIsUploading(true);
+            setValidationError('');
+            setSuccessMessage('');
+
+            const parsedData = await resumeParserService.parseResumeText(resumeText);
+            setFormData(transformToEditorFormat(parsedData));
+            setSuccessMessage('Resume text parsed successfully! Please review changes and save.');
+
+            // Expand all sections
+            setExpandedSections({
+                personal: true,
+                experience: true,
+                projects: true,
+                certifications: true,
+                education: true,
+                additional: true
+            });
+
+            // Close modal and clear text
+            setShowPasteModal(false);
+            setResumeText('');
+
+        } catch (error) {
+            console.error('Text parse error:', error);
+            setValidationError('Failed to parse resume text. Please try again.');
+        } finally {
+            setIsUploading(false);
         }
     };
 
@@ -363,7 +404,7 @@ function MasterResumeEditor({ masterResume, onSave }) {
     };
 
     return (
-        <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-sm border p-8">
+        <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-sm border p-8 relative">
             <div className="flex justify-between items-center mb-6">
                 <div>
                     <h2 className="text-2xl font-semibold text-gray-800 mb-2">
@@ -373,7 +414,16 @@ function MasterResumeEditor({ masterResume, onSave }) {
                         Edit your master resume details. All changes will be saved to your account.
                     </p>
                 </div>
-                <div>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => setShowPasteModal(true)}
+                        disabled={isUploading}
+                        className="flex items-center gap-2 px-4 py-2 border border-blue-200 text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50"
+                    >
+                        <Clipboard className="w-4 h-4" />
+                        Paste Text
+                    </button>
+
                     <input
                         type="file"
                         accept=".docx"
@@ -392,10 +442,63 @@ function MasterResumeEditor({ masterResume, onSave }) {
                         ) : (
                             <Upload className="w-4 h-4" />
                         )}
-                        {isUploading ? 'Parsing...' : 'Upload New Resume'}
+                        {isUploading ? 'Pars...' : 'Upload File'}
                     </button>
                 </div>
             </div>
+
+            {/* Paste Modal */}
+            {showPasteModal && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh]">
+                        <div className="p-4 border-b flex justify-between items-center">
+                            <h3 className="text-lg font-semibold text-gray-800">Paste Resume Text</h3>
+                            <button
+                                onClick={() => setShowPasteModal(false)}
+                                className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="p-6 flex-1 overflow-auto">
+                            <p className="text-gray-600 mb-4 text-sm">
+                                Copy the content of your resume/CV and paste it into the box below.
+                                Our AI will structure it automatically.
+                            </p>
+                            <textarea
+                                value={resumeText}
+                                onChange={(e) => setResumeText(e.target.value)}
+                                placeholder="Paste your resume content here..."
+                                className="w-full h-80 p-4 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+                            />
+                        </div>
+                        <div className="p-4 border-t bg-gray-50 rounded-b-xl flex justify-end gap-3">
+                            <button
+                                onClick={() => setShowPasteModal(false)}
+                                className="px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleTextParse}
+                                disabled={isUploading || !resumeText.trim()}
+                                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                            >
+                                {isUploading ? (
+                                    <>
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                        Parsing...
+                                    </>
+                                ) : (
+                                    <>
+                                        Parse with AI
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Toast Messages */}
             {validationError && (
