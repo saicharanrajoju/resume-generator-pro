@@ -26,7 +26,7 @@ const resumeParserService = {
     // Parse from pasted text
     async parseResumeText(resumeText) {
         try {
-            const response = await fetch('/api/parse-resume-text', {
+            const response = await fetch('/api/parse-resume', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

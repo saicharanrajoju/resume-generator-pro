@@ -95,48 +95,94 @@ module.exports = async (req, res) => {
         }
 
         // Parse with Claude
-        const prompt = `You are an expert at parsing resumes. Extract structured information from this resume text.
+        const prompt = `You are an expert resume parser. Extract ALL information from this resume into structured JSON.
 
 RESUME TEXT:
 ${resumeText}
 
-TASK:
-Parse this resume and extract all information into a structured JSON format. Be thorough and extract everything you can find.
+CRITICAL INSTRUCTIONS:
+1. Extract EVERYTHING - don't skip any details
+2. Return ONLY valid JSON (no markdown, no code blocks, no explanations)
+3. Use the EXACT structure below
+4. If a field is not found, use empty string "" or empty array []
+5. Preserve all metrics, numbers, and technical terms exactly as written
 
-IMPORTANT: Return ONLY valid JSON (no markdown, no code blocks) in this EXACT structure:
+REQUIRED JSON STRUCTURE:
 {
-  "fullName": "Full Name",
-  "email": "email@example.com",
-  "phone": "phone number",
-  "linkedin": "LinkedIn URL if found",
-  "location": "City, State",
+  "personalInfo": {
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "email": "email@example.com",
+    "phone": "+1-XXX-XXX-XXXX",
+    "address": {
+      "city": "City",
+      "state": "State",
+      "zipCode": ""
+    }
+  },
+  "onlinePresence": {
+    "linkedin": "https://linkedin.com/in/username",
+    "github": "https://github.com/username",
+    "portfolio": ""
+  },
+  "summary": "Professional summary or objective statement (2-3 sentences)",
+  "skills": {
+    "LLM & GenAI": ["LangChain", "CrewAI", "RAG", "FAISS", "Weaviate"],
+    "Programming & ML Frameworks": ["Python", "SQL", "PyTorch", "TensorFlow"],
+    "Cloud & Big Data": ["AWS", "GCP", "Azure", "Databricks"],
+    "Production & MLOps": ["Docker", "Kubernetes", "FastAPI", "Redis"],
+    "ML & NLP": ["Classification", "Deep Learning", "NLP", "BERT"],
+    "Data & Visualization": ["Tableau", "Power BI", "Looker"]
+  },
   "experience": [
     {
       "company": "Company Name",
       "position": "Job Title",
-      "startDate": "YYYY-MM",
-      "endDate": "YYYY-MM or empty if current",
-      "current": false,
+      "period": "Month YYYY – Month YYYY",
+      "location": "City, State or Client: Company Name",
       "achievements": [
-        "Achievement bullet point 1",
-        "Achievement bullet point 2"
+        "Achievement with metrics (e.g., Improved X by 25%)",
+        "Another achievement"
       ]
     }
   ],
-  "skills": {
-    "technical": ["skill1", "skill2"],
-    "soft": ["skill1", "skill2"]
-  },
+  "projects": [
+    {
+      "name": "Project Name",
+      "description": "Brief description",
+      "technologies": ["Python", "AWS", "Docker"],
+      "date": "YYYY or YYYY-YYYY",
+      "bullets": [
+        "What you built and the impact",
+        "Technical details and results"
+      ]
+    }
+  ],
   "education": [
     {
       "school": "University Name",
-      "degree": "Degree Type",
-      "field": "Field of Study",
-      "graduationYear": "YYYY"
+      "degree": "Master of Science in Data Science",
+      "field": "Data Science",
+      "year": "May YYYY",
+      "gpa": "4.0/4.0",
+      "relevantCoursework": "Course 1, Course 2, Course 3"
     }
   ],
-  "certifications": ["cert1", "cert2"]
+  "certifications": [
+    {
+      "name": "AWS Certified Machine Learning – Associate",
+      "date": "YYYY"
+    }
+  ]
 }
+
+IMPORTANT NOTES:
+- For "skills", categorize them intelligently based on the resume content
+- If you can't determine categories, put everything in "Programming & ML Frameworks"
+- For "experience", extract ALL bullet points as "achievements"
+- For "projects", extract project names, technologies used, and accomplishments
+- Preserve ALL numbers and metrics exactly as written
+- Extract the professional summary if present
 
 Extract the information now:`;
 

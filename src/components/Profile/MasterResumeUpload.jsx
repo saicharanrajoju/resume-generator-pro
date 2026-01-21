@@ -3,6 +3,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { masterResumeService } from '../../services/masterResumeService';
 import { useNavigate } from 'react-router-dom';
 import mammoth from 'mammoth';
+import resumeParserService from '../../services/resumeParserService';
 import MasterResumeEditor from './MasterResumeEditor';
 
 function MasterResumeUpload({ existingResume, onComplete }) {
@@ -47,29 +48,40 @@ function MasterResumeUpload({ existingResume, onComplete }) {
             const result = await mammoth.extractRawText({ arrayBuffer });
             const text = result.value;
 
-            // Parse the resume (you'll need to implement this parsing logic)
-            const parsedData = parseResume(text);
+            // ✅ REAL PARSING: Call Claude API via resumeParserService
+            console.log('📄 Parsing resume with Claude...');
+            const parsedData = await resumeParserService.parseResumeText(text);
+            console.log('✅ Parsing complete:', parsedData);
+
+            // Normalize data: Ensure both 'experience' and 'workExperience' exist
+            if (parsedData.experience && !parsedData.workExperience) {
+                parsedData.workExperience = parsedData.experience;
+            } else if (parsedData.workExperience && !parsedData.experience) {
+                parsedData.experience = parsedData.workExperience;
+            }
 
             const masterResumeData = {
                 rawText: text,
                 parsedData: parsedData,
-                uploadDate: new Date().toISOString()
+                uploadDate: new Date().toISOString(),
+                userId: user.uid
             };
 
-            // Save to Firestore
-            await masterResumeService.saveMasterResume(user.uid, masterResumeData);
-
-
+            // Set master resume for review (don't save yet)
             setMasterResume(masterResumeData);
 
-            const missing = getMissingProfileData(masterResumeData); // Pass data directly
+            // Show review/edit interface
+            setShowMasterDetails(true);
+
+            // Check for missing profile data
+            const missing = getMissingProfileData(masterResumeData);
             if (missing && missing.length > 0) {
                 setShowProfileDetails(true);
             }
 
         } catch (err) {
             console.error('Upload error:', err);
-            setError('Failed to upload resume. Please try again.');
+            setError(`Failed to parse resume: ${err.message}`);
         } finally {
             setUploading(false);
         }
@@ -151,29 +163,6 @@ function MasterResumeUpload({ existingResume, onComplete }) {
         }
 
         return missing;
-    };
-    const parseResume = (text) => {
-        // Basic parsing - you should implement proper parsing logic
-        return {
-            personalInfo: {
-                firstName: '',
-                lastName: '',
-                email: '',
-                phone: '',
-                address: {
-                    city: '',
-                    state: '',
-                    zipCode: ''
-                }
-            },
-            onlinePresence: {
-                linkedin: ''
-            },
-            education: [],
-            workExperience: [],
-            projects: [],
-            certifications: []
-        };
     };
 
     const updateEducationField = (index, value) => {
