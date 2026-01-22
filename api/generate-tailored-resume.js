@@ -1,4 +1,4 @@
-import { estimateResumePages } from '../src/utils/resumePageEstimator';
+
 
 export default async function handler(req, res) {
   // CORS headers
@@ -47,7 +47,7 @@ export default async function handler(req, res) {
           'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-sonnet-4-5-20250929',
           max_tokens: maxTokens,
           messages: [{ role: 'user', content: prompt }]
         })
@@ -69,6 +69,72 @@ export default async function handler(req, res) {
         throw new Error('No JSON found in response');
       }
       return JSON.parse(text.substring(firstBrace, lastBrace + 1));
+    }
+
+    // Page estimation function (inline to avoid ES module issues)
+    function estimateResumePages(resumeData) {
+      let lines = 0;
+
+      // FIXED HEADER SECTIONS
+      lines += 4;  // Name + contact
+      lines += 4;  // Summary
+
+      // SKILLS
+      const skillCount = Object.keys(resumeData.skills || {}).length;
+      lines += 1;  // Header
+      lines += Math.min(skillCount * 1.3, 8);
+
+      // EXPERIENCE
+      lines += 1;  // Header
+      (resumeData.experience || []).forEach((job, idx) => {
+        lines += 1.2;  // Job title
+        const bullets = (job.achievements || job.bullets || []).length;
+        lines += bullets * 1.2;
+        if (idx < resumeData.experience.length - 1) {
+          lines += 0.5;
+        }
+      });
+
+      // PROJECTS
+      if (resumeData.projects && resumeData.projects.length > 0) {
+        lines += 1;  // Header
+        resumeData.projects.forEach((proj, idx) => {
+          lines += 1;  // Title
+          if (proj.description) lines += 1.2;
+          if (proj.technologies && proj.technologies.length > 0) lines += 1;
+          if (idx < resumeData.projects.length - 1) {
+            lines += 0.5;
+          }
+        });
+      }
+
+      // CERTIFICATIONS
+      if (resumeData.certifications && resumeData.certifications.length > 0) {
+        lines += 1;  // Header
+        lines += resumeData.certifications.length * 0.5;
+      }
+
+      // EDUCATION
+      if (resumeData.education && resumeData.education.length > 0) {
+        lines += 1;  // Header
+        resumeData.education.forEach(edu => {
+          lines += 1.2;
+          if (edu.gpa) lines += 0.5;
+          if (edu.relevantCoursework) lines += 1;
+          lines += 0.3;
+        });
+      }
+
+      const pages = lines / 52;
+
+      return {
+        estimatedLines: Math.round(lines),
+        estimatedPages: Math.round(pages * 10) / 10,
+        isOverTwoPages: pages > 2.15,
+        recommendation: pages <= 2.1
+          ? `✅ ${Math.round(pages * 10) / 10} pages - Fits well!`
+          : `⚠️ ${Math.round(pages * 10) / 10} pages - Consider trimming`
+      };
     }
 
     // ═══════════════════════════════════════════════════════════════
