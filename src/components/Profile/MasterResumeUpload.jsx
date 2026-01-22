@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
-import { Upload, FileText, CheckCircle, AlertCircle, RefreshCw, Briefcase, Award, TrendingUp, Layers, Star } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertCircle, RefreshCw, Briefcase, Award, TrendingUp, Layers, Star, MessageSquare, Send } from 'lucide-react';
 import mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf';
 import {
@@ -33,6 +33,11 @@ function MasterResumeUpload({ existingResume, onComplete }) {
     // Resume DNA State
     const [showUnderstanding, setShowUnderstanding] = useState(false);
     const [resumeData, setResumeData] = useState(null);
+
+    // Chat State
+    const [chatHistory, setChatHistory] = useState([]);
+    const [chatInput, setChatInput] = useState('');
+    const [chatLoading, setChatLoading] = useState(false);
 
     // Check for existing resume on load
     useEffect(() => {
@@ -274,6 +279,59 @@ function MasterResumeUpload({ existingResume, onComplete }) {
         navigate('/generate-resume');
     };
 
+    // Chat Handler
+    const handleChatSubmit = async () => {
+        if (!chatInput.trim() || chatLoading) return;
+
+        const userMessage = chatInput.trim();
+
+        // Add user message to chat
+        setChatHistory(prev => [...prev, { role: 'user', content: userMessage }]);
+        setChatInput('');
+        setChatLoading(true);
+
+        try {
+            // Call API to process the update request
+            const response = await fetch('/api/update-resume', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: user.uid,
+                    message: userMessage,
+                    currentResume: resumeData
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Update failed');
+            }
+
+            const data = await response.json();
+
+            // Add assistant response to chat
+            setChatHistory(prev => [...prev, {
+                role: 'assistant',
+                content: data.response
+            }]);
+
+            // Update the displayed resume data if changes were made
+            if (data.updatedResume) {
+                setResumeData(data.updatedResume);
+                // Optionally save back to Firebase or update local context if needed, 
+                // but the API usually handles saving to Firebase.
+            }
+
+        } catch (error) {
+            console.error('Chat error:', error);
+            setChatHistory(prev => [...prev, {
+                role: 'assistant',
+                content: 'Sorry, I encountered an error. Please try again.'
+            }]);
+        } finally {
+            setChatLoading(false);
+        }
+    };
+
     // Handle viewing analysis for existing resume
     const handleViewAnalysis = async () => {
         try {
@@ -446,6 +504,94 @@ function MasterResumeUpload({ existingResume, onComplete }) {
                                         {Object.keys(resumeData.structured.skills || {}).reduce((acc, cat) => acc + resumeData.structured.skills[cat].length, 0)}
                                     </span>
                                     <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Skills</span>
+                                </div>
+                            </div>
+
+                            {/* Chat Section */}
+                            <div className="border-t-2 border-slate-100 pt-8 mt-8">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="p-2 bg-blue-100 rounded-lg">
+                                        <MessageSquare className="w-5 h-5 text-blue-600" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-bold text-gray-800">Update Your Resume</h3>
+                                        <p className="text-gray-500 text-sm">Chat with me to make changes</p>
+                                    </div>
+                                </div>
+
+                                {/* Suggested Prompts */}
+                                {chatHistory.length === 0 && (
+                                    <div className="bg-slate-50 rounded-lg p-4 mb-6">
+                                        <p className="text-sm text-gray-600 mb-2 font-medium">Try asking:</p>
+                                        <ul className="space-y-2">
+                                            {["Add Spanish language to my skills", "Remove my trainee experience", "Update my summary to emphasize leadership"].map((prompt, idx) => (
+                                                <li
+                                                    key={idx}
+                                                    className="text-sm text-blue-600 bg-white px-3 py-2 rounded border border-slate-200 cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-colors inline-block mr-2 mb-2"
+                                                    onClick={() => setChatInput(prompt)}
+                                                >
+                                                    "{prompt}"
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+
+                                {/* Chat Messages */}
+                                <div className="bg-slate-50 rounded-xl p-4 mb-4 max-h-[400px] overflow-y-auto border border-slate-200">
+                                    {chatHistory.length === 0 ? (
+                                        <div className="text-center py-8 text-gray-400 italic">
+                                            No messages yet. Start chatting to update your resume!
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            {chatHistory.map((msg, idx) => (
+                                                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                                    <div className={`max-w-[80%] rounded-xl p-3 ${msg.role === 'user'
+                                                            ? 'bg-blue-600 text-white rounded-br-none'
+                                                            : 'bg-white border border-slate-200 text-gray-800 rounded-bl-none shadow-sm'
+                                                        }`}>
+                                                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {chatLoading && (
+                                                <div className="flex justify-start">
+                                                    <div className="bg-white border border-slate-200 rounded-xl rounded-bl-none p-3 shadow-sm">
+                                                        <div className="flex gap-1">
+                                                            <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
+                                                            <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce delay-75"></div>
+                                                            <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce delay-150"></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Chat Input */}
+                                <div className="flex gap-2">
+                                    <textarea
+                                        value={chatInput}
+                                        onChange={(e) => setChatInput(e.target.value)}
+                                        placeholder="Tell me what to change..."
+                                        className="flex-1 border-2 border-slate-200 rounded-xl p-3 focus:border-blue-500 focus:outline-none resize-none h-[60px] text-sm"
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && !e.shiftKey) {
+                                                e.preventDefault();
+                                                handleChatSubmit();
+                                            }
+                                        }}
+                                        disabled={chatLoading}
+                                    />
+                                    <button
+                                        onClick={handleChatSubmit}
+                                        disabled={!chatInput.trim() || chatLoading}
+                                        className="bg-blue-600 text-white px-4 rounded-xl hover:bg-blue-700 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center shrink-0"
+                                    >
+                                        <Send className="w-5 h-5" />
+                                    </button>
                                 </div>
                             </div>
 
