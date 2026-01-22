@@ -3,6 +3,10 @@ import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { Upload, FileText, CheckCircle, AlertCircle } from 'lucide-react';
 import mammoth from 'mammoth';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf';
+
+// Set worker path
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 function MasterResumeUpload({ existingResume, onComplete }) {
     const { user } = useAuth();
@@ -79,41 +83,31 @@ function MasterResumeUpload({ existingResume, onComplete }) {
         return result.value;
     };
 
-    // Read PDF file using backend API
+    // Read PDF file client-side using pdf.js
     const readPdfFile = async (file) => {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                try {
-                    // Get base64 string (remove data:application/pdf;base64, prefix)
-                    const base64 = e.target.result.split(',')[1];
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            const uint8Array = new Uint8Array(arrayBuffer);
 
-                    // Call backend API to extract text
-                    const response = await fetch('/api/extract-pdf', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ fileBuffer: base64 })
-                    });
+            // Load PDF document
+            const loadingTask = pdfjsLib.getDocument({ data: uint8Array });
+            const pdf = await loadingTask.promise;
 
-                    if (!response.ok) {
-                        const errorData = await response.json();
-                        throw new Error(errorData.error || 'PDF extraction failed');
-                    }
+            let fullText = '';
 
-                    const { text } = await response.json();
+            // Extract text from each page
+            for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                const page = await pdf.getPage(pageNum);
+                const textContent = await page.getTextContent();
+                const pageText = textContent.items.map(item => item.str).join(' ');
+                fullText += pageText + '\n\n';
+            }
 
-                    if (!text || text.trim().length < 50) {
-                        throw new Error('Could not extract enough text from PDF');
-                    }
-
-                    resolve(text);
-                } catch (error) {
-                    reject(error);
-                }
-            };
-            reader.onerror = () => reject(new Error('Failed to read PDF file'));
-            reader.readAsDataURL(file);
-        });
+            return fullText.trim();
+        } catch (error) {
+            console.error('PDF extraction error:', error);
+            throw new Error('Failed to extract text from PDF. Please try pasting text instead.');
+        }
     };
 
     // Trigger hidden file input
