@@ -1,9 +1,10 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
-import { Upload, FileText, CheckCircle, AlertCircle } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf';
+import { saveMasterResumeRawText, loadMasterResume } from '../../services/masterResumeService';
 
 // Set worker path
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
@@ -22,6 +23,47 @@ function MasterResumeUpload({ existingResume, onComplete }) {
     const [loadingMessage, setLoadingMessage] = useState('');
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
+    const [hasExistingResume, setHasExistingResume] = useState(false);
+
+    // Check for existing resume on load
+    useEffect(() => {
+        const checkExistingResume = async () => {
+            if (user?.uid) {
+                const result = await loadMasterResume(user.uid);
+                if (result.success && result.data?.rawText) {
+                    setHasExistingResume(true);
+                    setResumeText(result.data.rawText);
+                    // Don't auto-show success needed for initial view, 
+                    // just set state so we can show "View Current" UI
+                }
+            }
+        };
+
+        checkExistingResume();
+    }, [user]);
+
+    // Helper to save resume text
+    const saveResumeToFirebase = async (text) => {
+        if (!user?.uid) return;
+
+        try {
+            setLoadingMessage('Saving to your account...');
+            const result = await saveMasterResumeRawText(user.uid, text);
+
+            if (result.success) {
+                console.log('✅ Resume saved to Firebase');
+                setResumeText(text);
+                setSuccess(true);
+                setHasExistingResume(true);
+            } else {
+                console.error('Failed to save resume:', result.error);
+                setError('Resume loaded but could not save. Please try again.');
+            }
+        } catch (error) {
+            console.error('Firebase error:', error);
+            setError('Resume loaded but could not save. Please try again.');
+        }
+    };
 
     // Handle file selection and reading
     const handleFileSelect = async (event) => {
@@ -54,9 +96,10 @@ function MasterResumeUpload({ existingResume, onComplete }) {
                 throw new Error('Could not extract enough text from file. Please try a different format or paste text.');
             }
 
-            setResumeText(extractedText);
-            setSuccess(true);
+            // Save to Firebase instead of just setting state locally
+            await saveResumeToFirebase(extractedText);
             setLoadingMessage('');
+
         } catch (err) {
             console.error('File reading error:', err);
             setError(err.message || 'Could not read file. Please try a different format or paste text.');
@@ -116,7 +159,7 @@ function MasterResumeUpload({ existingResume, onComplete }) {
     };
 
     // Handle paste text submission
-    const handlePasteSubmit = () => {
+    const handlePasteSubmit = async () => {
         if (!pastedText.trim()) {
             setError('Please paste your resume text');
             return;
@@ -126,30 +169,86 @@ function MasterResumeUpload({ existingResume, onComplete }) {
         setLoadingMessage('Processing your resume...');
         setError('');
 
-        // Simulate processing delay
-        setTimeout(() => {
-            setResumeText(pastedText);
-            setSuccess(true);
+        // Process text directly
+        try {
+            await saveResumeToFirebase(pastedText);
             setShowPasteModal(false);
             setPastedText('');
-            setLoading(false);
             setLoadingMessage('');
-        }, 500);
+        } catch (err) {
+            setError('Failed to process text. Please try again.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     // Reset and start over
     const handleStartOver = () => {
         setSelectedFile(null);
-        setResumeText('');
-        setSuccess(false);
+        // If we have an existing resume, reset to that state instead of completely blank
+        if (hasExistingResume) {
+            setSuccess(false); // Go back to "view existing" mode
+        } else {
+            setResumeText('');
+            setSuccess(false);
+        }
         setError('');
         setPastedText('');
     };
 
+    // Show existing resume UI if user has one and is not in success (post-upload) state
+    const showExistingUI = hasExistingResume && !success && !loading;
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
             <div className="bg-white rounded-xl shadow-lg p-10 max-w-2xl w-full">
-                {!success ? (
+                {showExistingUI ? (
+                    // EXISTING RESUME UI
+                    <>
+                        <div className="text-center mb-6">
+                            <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <FileText className="w-10 h-10 text-blue-600" />
+                            </div>
+                        </div>
+
+                        <h1 className="text-3xl font-bold text-gray-800 text-center mb-3">
+                            Master Resume Found
+                        </h1>
+
+                        <p className="text-gray-600 text-center mb-8 max-w-md mx-auto">
+                            You already have a master resume on file. You can view it or upload a new one to replace it.
+                        </p>
+
+                        {/* Preview */}
+                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+                            <p className="text-xs text-gray-500 mb-2 font-semibold">CURRENT RESUME PREVIEW:</p>
+                            <p className="text-sm text-gray-700 font-mono">
+                                {resumeText.length > 200 ? resumeText.substring(0, 200) + '...' : resumeText}
+                            </p>
+                        </div>
+
+                        <div className="flex flex-col gap-3">
+                            <button
+                                onClick={() => setSuccess(true)} // Show the success/preview view
+                                className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2"
+                            >
+                                <FileText className="w-5 h-5" />
+                                View Full Resume
+                            </button>
+
+                            <p className="text-center text-gray-400 text-sm my-2">- OR -</p>
+
+                            <button
+                                onClick={() => setHasExistingResume(false)} // Reset to upload mode
+                                className="w-full bg-white text-gray-700 border-2 border-gray-200 px-6 py-3 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center justify-center gap-2"
+                            >
+                                <RefreshCw className="w-5 h-5" />
+                                Upload New Resume
+                            </button>
+                        </div>
+                    </>
+                ) : !success ? (
+                    // UPLOAD UI
                     <>
                         {/* Icon */}
                         <div className="text-center mb-6">
@@ -160,7 +259,7 @@ function MasterResumeUpload({ existingResume, onComplete }) {
 
                         {/* Heading */}
                         <h1 className="text-3xl font-bold text-gray-800 text-center mb-3">
-                            Upload Your Master Resume
+                            {hasExistingResume ? "Update Master Resume" : "Upload Your Master Resume"}
                         </h1>
 
                         {/* Subtext */}
@@ -239,6 +338,7 @@ function MasterResumeUpload({ existingResume, onComplete }) {
                         </div>
                     </>
                 ) : (
+                    // SUCCESS / PREVIEW UI
                     <>
                         {/* Success State */}
                         <div className="text-center mb-6">
@@ -248,18 +348,18 @@ function MasterResumeUpload({ existingResume, onComplete }) {
                         </div>
 
                         <h1 className="text-3xl font-bold text-gray-800 text-center mb-3">
-                            ✅ Resume Loaded!
+                            ✅ Resume Uploaded & Saved!
                         </h1>
 
                         <p className="text-gray-600 text-center mb-6">
-                            Processing your resume...
+                            Processing with AI...
                         </p>
 
                         {/* Preview */}
                         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
                             <p className="text-xs text-gray-500 mb-2 font-semibold">PREVIEW (First 200 characters):</p>
                             <p className="text-sm text-gray-700 font-mono">
-                                {resumeText.substring(0, 200)}...
+                                {resumeText.length > 200 ? resumeText.substring(0, 200) + '...' : resumeText}
                             </p>
                         </div>
 
@@ -275,7 +375,7 @@ function MasterResumeUpload({ existingResume, onComplete }) {
                             onClick={handleStartOver}
                             className="w-full bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 transition-colors font-medium"
                         >
-                            ← Start Over
+                            ← {hasExistingResume ? "Back to Resume" : "Start Over"}
                         </button>
                     </>
                 )}

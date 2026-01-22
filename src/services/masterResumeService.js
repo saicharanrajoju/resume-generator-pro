@@ -1,6 +1,7 @@
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from './firebase';
 
+// Legacy service object - kept for backward compatibility
 export const masterResumeService = {
     /**
      * Get master resume for a user
@@ -141,5 +142,64 @@ export const masterResumeService = {
         }
 
         return await this.updateMasterResume(userId, updates);
+    }
+};
+
+// ==========================================
+// NEW SCHEMA FUNCTIONS (Hybrid Approach)
+// ==========================================
+
+export const saveMasterResumeRawText = async (userId, resumeText) => {
+    try {
+        const masterResumeRef = doc(db, 'users', userId, 'masterResume', 'data');
+
+        await setDoc(masterResumeRef, {
+            rawText: resumeText,
+            meta: {
+                uploadedAt: serverTimestamp(),
+                lastUpdated: serverTimestamp(),
+                version: '2.0',
+                processingStatus: 'pending'
+            }
+        }, { merge: true });  // merge: true preserves existing fields
+
+        return { success: true };
+    } catch (error) {
+        console.error('Error saving resume:', error);
+        return { success: false, error: error.message };
+    }
+};
+
+export const updateProcessingStatus = async (userId, status) => {
+    try {
+        const masterResumeRef = doc(db, 'users', userId, 'masterResume', 'data');
+
+        await setDoc(masterResumeRef, {
+            meta: {
+                processingStatus: status,
+                lastUpdated: serverTimestamp()
+            }
+        }, { merge: true });
+
+        return { success: true };
+    } catch (error) {
+        console.error('Error updating status:', error);
+        return { success: false, error: error.message };
+    }
+};
+
+export const loadMasterResume = async (userId) => {
+    try {
+        const masterResumeRef = doc(db, 'users', userId, 'masterResume', 'data');
+        const docSnap = await getDoc(masterResumeRef);
+
+        if (docSnap.exists()) {
+            return { success: true, data: docSnap.data() };
+        } else {
+            return { success: false, error: 'No master resume found' };
+        }
+    } catch (error) {
+        console.error('Error loading resume:', error);
+        return { success: false, error: error.message };
     }
 };
