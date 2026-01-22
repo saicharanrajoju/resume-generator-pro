@@ -24,6 +24,60 @@ export default async function handler(req, res) {
     }
 
     // ═══════════════════════════════════════════════════════════════
+    // INTELLIGENT DATA EXTRACTION: Let Claude parse on-the-fly
+    // ═══════════════════════════════════════════════════════════════
+
+    console.log('🧠 Extracting resume structure intelligently...');
+
+    const structurePrompt = `Extract key sections from this resume for optimization.
+
+RESUME:
+${masterResumeText}
+
+Output JSON with these sections (extract what exists, use empty arrays/objects if missing):
+{
+  "summary": "professional summary text",
+  "skills": {
+    "Category1": ["skill1", "skill2"],
+    "Category2": ["skill3"]
+  },
+  "experience": [
+    {
+      "company": "Company Name",
+      "position": "Job Title",
+      "period": "Dates",
+      "achievements": ["bullet 1", "bullet 2"]
+    }
+  ],
+  "projects": [
+    {
+      "name": "Project Name",
+      "description": "what it does",
+      "technologies": ["tech1", "tech2"]
+    }
+  ],
+  "education": [
+    {
+      "school": "University",
+      "degree": "Degree",
+      "field": "Field of Study",
+      "year": "Graduation Year",
+      "gpa": "GPA if present"
+    }
+  ],
+  "certifications": [
+    {"name": "Cert Name", "date": "Year"}
+  ]
+}
+
+Be thorough. Extract everything.`;
+
+    const extractedStructure = await callClaude(structurePrompt, 3000);
+    const resumeStructure = parseJSON(extractedStructure);
+
+    console.log('✅ Resume structure extracted intelligently');
+
+    // ═══════════════════════════════════════════════════════════════
     // QUALITY GATE: Validate inputs before processing
     // ═══════════════════════════════════════════════════════════════
 
@@ -169,13 +223,13 @@ Be thorough. Extract ALL technical terms.`, 1500),
       callClaude(`Analyze what this candidate knows based on their background.
 
 SKILLS:
-${JSON.stringify(parsedData.skills, null, 2)}
+${JSON.stringify(resumeStructure.skills, null, 2)}
 
 EXPERIENCE SUMMARY:
-${parsedData.experience?.map(e => `${e.position} at ${e.company}`).join(', ')}
+${resumeStructure.experience?.map(e => `${e.position} at ${e.company}`).join(', ')}
 
 PROJECT NAMES:
-${parsedData.projects?.map(p => p.name).join(', ')}
+${resumeStructure.projects?.map(p => p.name).join(', ')}
 
 Output as JSON:
 {
@@ -230,7 +284,7 @@ JD KEYWORDS:
 ${JSON.stringify(jdData.all_keywords, null, 2)}
 
 CANDIDATE'S CURRENT SKILLS:
-${JSON.stringify(parsedData.skills, null, 2)}
+${JSON.stringify(resumeStructure.skills, null, 2)}
 
 CANDIDATE'S BACKGROUND:
 - Technologies used: ${resumeData.technologies_used.join(', ')}
@@ -296,7 +350,7 @@ Add selected keywords to skills section while preserving structure.
    - Data & Visualization
 
 CURRENT SKILLS:
-${JSON.stringify(parsedData.skills, null, 2)}
+${JSON.stringify(resumeStructure.skills, null, 2)}
 
 KEYWORDS TO ADD:
 ${JSON.stringify(keywordSelection.keywords_to_add, null, 2)}
@@ -329,35 +383,35 @@ Output COMPLETE updated skills section (all 6 categories) as JSON:
 
     // DEBUG: Log what we're receiving to catch missing data
     console.log('📦 Data check:', {
-      hasSummary: !!parsedData.summary,
-      hasSkills: !!parsedData.skills,
-      hasExperience: !!parsedData.experience,
-      experienceCount: parsedData.experience?.length || 0,
-      hasProjects: !!parsedData.projects,
-      projectCount: parsedData.projects?.length || 0,
-      hasEducation: !!parsedData.education,
-      hasCertifications: !!parsedData.certifications
+      hasSummary: !!resumeStructure.summary,
+      hasSkills: !!resumeStructure.skills,
+      hasExperience: !!resumeStructure.experience,
+      experienceCount: resumeStructure.experience?.length || 0,
+      hasProjects: !!resumeStructure.projects,
+      projectCount: resumeStructure.projects?.length || 0,
+      hasEducation: !!resumeStructure.education,
+      hasCertifications: !!resumeStructure.certifications
     });
 
     // CRITICAL: Assemble with fallbacks for missing data
     const finalResume = {
-      summary: parsedData.summary || "AI/ML Engineer with experience in data pipelines and ML systems",
+      summary: resumeStructure.summary || "AI/ML Engineer with experience in data pipelines and ML systems",
 
       skills: optimizedSkills, // ONLY thing we modified
 
-      // Everything else is UNCHANGED from parsedData
-      experience: parsedData.experience || [],
-      projects: parsedData.projects || [],
-      certifications: parsedData.certifications || [],
-      education: parsedData.education || []
+      // Everything else is UNCHANGED from resumeStructure
+      experience: resumeStructure.experience || [],
+      projects: resumeStructure.projects || [],
+      certifications: resumeStructure.certifications || [],
+      education: resumeStructure.education || []
     };
 
     // Validation: Make sure we're not returning empty sections
     if (!finalResume.experience.length || !finalResume.projects.length) {
-      console.error('❌ CRITICAL: Missing sections in parsedData!');
-      console.error('parsedData structure:', Object.keys(parsedData));
+      console.error('❌ CRITICAL: Missing sections in resumeStructure!');
+      console.error('resumeStructure structure:', Object.keys(resumeStructure));
 
-      throw new Error('Incomplete resume data. Check frontend is sending all sections.');
+      throw new Error('Incomplete resume data. Check semantic extraction results.');
     }
 
     console.log('✅ Stage 5 complete. Resume assembled successfully.');
