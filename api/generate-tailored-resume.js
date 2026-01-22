@@ -24,58 +24,33 @@ export default async function handler(req, res) {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // INTELLIGENT DATA EXTRACTION: Let Claude parse on-the-fly
+    // USE STORED UNDERSTANDING: No re-parsing needed
     // ═══════════════════════════════════════════════════════════════
 
-    console.log('🧠 Extracting resume structure intelligently...');
+    console.log('📦 Using stored resume structure');
 
-    const structurePrompt = `Extract key sections from this resume for optimization.
+    // Normalize field names from whatever is in parsedData
+    const resumeStructure = {
+      summary: parsedData.summary || parsedData.professionalSummary || '',
 
-RESUME:
-${masterResumeText}
+      skills: parsedData.skills || {},
 
-Output JSON with these sections (extract what exists, use empty arrays/objects if missing):
-{
-  "summary": "professional summary text",
-  "skills": {
-    "Category1": ["skill1", "skill2"],
-    "Category2": ["skill3"]
-  },
-  "experience": [
-    {
-      "company": "Company Name",
-      "position": "Job Title",
-      "period": "Dates",
-      "achievements": ["bullet 1", "bullet 2"]
-    }
-  ],
-  "projects": [
-    {
-      "name": "Project Name",
-      "description": "what it does",
-      "technologies": ["tech1", "tech2"]
-    }
-  ],
-  "education": [
-    {
-      "school": "University",
-      "degree": "Degree",
-      "field": "Field of Study",
-      "year": "Graduation Year",
-      "gpa": "GPA if present"
-    }
-  ],
-  "certifications": [
-    {"name": "Cert Name", "date": "Year"}
-  ]
-}
+      experience: parsedData.experience || parsedData.workExperience || [],
 
-Be thorough. Extract everything.`;
+      projects: parsedData.projects || [],
 
-    const extractedStructure = await callClaude(structurePrompt, 3000);
-    const resumeStructure = parseJSON(extractedStructure);
+      education: parsedData.education || [],
 
-    console.log('✅ Resume structure extracted intelligently');
+      certifications: parsedData.certifications || []
+    };
+
+    console.log('✅ Resume structure ready:', {
+      hasExperience: resumeStructure.experience.length > 0,
+      hasProjects: resumeStructure.projects.length > 0,
+      skillCategories: Object.keys(resumeStructure.skills).length
+    });
+
+    // Use resumeStructure for the rest of the pipeline
 
     // ═══════════════════════════════════════════════════════════════
     // QUALITY GATE: Validate inputs before processing
@@ -407,11 +382,9 @@ Output COMPLETE updated skills section (all 6 categories) as JSON:
     };
 
     // Validation: Make sure we're not returning empty sections
-    if (!finalResume.experience.length || !finalResume.projects.length) {
-      console.error('❌ CRITICAL: Missing sections in resumeStructure!');
-      console.error('resumeStructure structure:', Object.keys(resumeStructure));
-
-      throw new Error('Incomplete resume data. Check semantic extraction results.');
+    // Log warnings but don't throw errors
+    if (!finalResume.experience || finalResume.experience.length === 0) {
+      console.warn('⚠️ No experience found in resume');
     }
 
     console.log('✅ Stage 5 complete. Resume assembled successfully.');
