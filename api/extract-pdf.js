@@ -1,3 +1,5 @@
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf';
+
 export const config = {
     api: {
         bodyParser: {
@@ -7,18 +9,14 @@ export const config = {
 };
 
 export default async function handler(req, res) {
-    console.log('PDF extract endpoint called');
-    console.log('Method:', req.method);
-
-    // CORS headers
+    // Add CORS headers
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
     if (req.method === 'OPTIONS') {
-        res.status(200).end();
-        return;
+        return res.status(200).end();
     }
 
     if (req.method !== 'POST') {
@@ -27,38 +25,32 @@ export default async function handler(req, res) {
 
     try {
         const { fileBuffer } = req.body;
-        console.log('FileBuffer received:', !!fileBuffer);
 
         if (!fileBuffer) {
-            console.log('No file buffer provided');
             return res.status(400).json({ error: 'No file provided' });
         }
 
-        // Try importing pdf-parse
-        let pdfParse;
-        try {
-            pdfParse = require('pdf-parse');
-            console.log('pdf-parse loaded successfully');
-        } catch (importError) {
-            console.error('Failed to import pdf-parse:', importError);
-            return res.status(500).json({
-                error: 'PDF library not available',
-                details: 'Please install pdf-parse dependency'
-            });
+        // Convert base64 to Uint8Array
+        const binaryString = Buffer.from(fileBuffer, 'base64');
+        const bytes = new Uint8Array(binaryString);
+
+        // Load PDF document
+        const loadingTask = pdfjsLib.getDocument({ data: bytes });
+        const pdf = await loadingTask.promise;
+
+        let fullText = '';
+
+        // Extract text from each page
+        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+            const page = await pdf.getPage(pageNum);
+            const textContent = await page.getTextContent();
+            const pageText = textContent.items.map(item => item.str).join(' ');
+            fullText += pageText + '\n\n';
         }
 
-        // Convert base64 to buffer
-        const buffer = Buffer.from(fileBuffer, 'base64');
-        console.log('Buffer created, size:', buffer.length);
-
-        // Extract text from PDF
-        const data = await pdfParse(buffer);
-        console.log('PDF parsed successfully, text length:', data.text?.length);
-
         return res.status(200).json({
-            text: data.text,
-            pages: data.numpages,
-            info: data.info
+            text: fullText.trim(),
+            pages: pdf.numPages
         });
 
     } catch (error) {
