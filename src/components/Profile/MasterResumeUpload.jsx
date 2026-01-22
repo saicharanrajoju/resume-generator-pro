@@ -79,11 +79,41 @@ function MasterResumeUpload({ existingResume, onComplete }) {
         return result.value;
     };
 
-    // Read PDF file (using pdf-parse in browser is complex, so we'll use a workaround)
+    // Read PDF file using backend API
     const readPdfFile = async (file) => {
-        // Note: pdf-parse doesn't work in browser. We'll need to use a different approach
-        // For now, show an error and suggest alternatives
-        throw new Error('PDF support requires server-side processing. Please convert to DOCX or paste text directly.');
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    // Get base64 string (remove data:application/pdf;base64, prefix)
+                    const base64 = e.target.result.split(',')[1];
+
+                    // Call backend API to extract text
+                    const response = await fetch('/api/extract-pdf', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ fileBuffer: base64 })
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || 'PDF extraction failed');
+                    }
+
+                    const { text } = await response.json();
+
+                    if (!text || text.trim().length < 50) {
+                        throw new Error('Could not extract enough text from PDF');
+                    }
+
+                    resolve(text);
+                } catch (error) {
+                    reject(error);
+                }
+            };
+            reader.onerror = () => reject(new Error('Failed to read PDF file'));
+            reader.readAsDataURL(file);
+        });
     };
 
     // Trigger hidden file input
@@ -142,7 +172,7 @@ function MasterResumeUpload({ existingResume, onComplete }) {
                         {/* Subtext */}
                         <p className="text-gray-600 text-center mb-8 max-w-md mx-auto">
                             Upload your resume and I'll understand everything about your background.
-                            Supports DOCX, TXT, or paste text directly.
+                            Supports PDF, DOCX, TXT, or paste text directly.
                         </p>
 
                         {/* Error Message */}
@@ -190,7 +220,7 @@ function MasterResumeUpload({ existingResume, onComplete }) {
                         <input
                             ref={fileInputRef}
                             type="file"
-                            accept=".docx,.txt"
+                            accept=".pdf,.docx,.txt"
                             onChange={handleFileSelect}
                             className="hidden"
                         />
