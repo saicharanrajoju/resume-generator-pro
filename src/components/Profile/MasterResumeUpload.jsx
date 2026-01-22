@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
-import { Upload, FileText, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertCircle, RefreshCw, Briefcase, Award, TrendingUp, Layers, Star } from 'lucide-react';
 import mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf';
 import {
@@ -30,6 +30,10 @@ function MasterResumeUpload({ existingResume, onComplete }) {
     const [success, setSuccess] = useState(false);
     const [hasExistingResume, setHasExistingResume] = useState(false);
 
+    // Resume DNA State
+    const [showUnderstanding, setShowUnderstanding] = useState(false);
+    const [resumeData, setResumeData] = useState(null);
+
     // Check for existing resume on load
     useEffect(() => {
         const checkExistingResume = async () => {
@@ -38,8 +42,18 @@ function MasterResumeUpload({ existingResume, onComplete }) {
                 if (result.success && result.data?.rawText) {
                     setHasExistingResume(true);
                     setResumeText(result.data.rawText);
-                    // Don't auto-show success needed for initial view, 
-                    // just set state so we can show "View Current" UI
+
+                    // Check if we have processed data
+                    if (result.data.meta?.processingStatus === 'complete' &&
+                        result.data.understanding &&
+                        result.data.structured) {
+                        setResumeData({
+                            understanding: result.data.understanding,
+                            structured: result.data.structured
+                        });
+                        setShowUnderstanding(true);
+                        setSuccess(true);
+                    }
                 }
             }
         };
@@ -98,6 +112,8 @@ function MasterResumeUpload({ existingResume, onComplete }) {
                     await saveProcessedResume(user.uid, understanding, structured);
 
                     console.log('✅ AI Processing complete');
+                    setResumeData({ understanding, structured });
+                    setShowUnderstanding(true);
                     setResumeText(text);
                     setSuccess(true);
                     setHasExistingResume(true);
@@ -240,201 +256,380 @@ function MasterResumeUpload({ existingResume, onComplete }) {
     // Reset and start over
     const handleStartOver = () => {
         setSelectedFile(null);
+        setShowUnderstanding(false);
         // If we have an existing resume, reset to that state instead of completely blank
-        if (hasExistingResume) {
-            setSuccess(false); // Go back to "view existing" mode
+        if (hasExistingResume && !showUnderstanding) {
+            // Already showing existing, do nothing or maybe reset view
+            setSuccess(false);
         } else {
             setResumeText('');
             setSuccess(false);
+            setHasExistingResume(false);
         }
         setError('');
         setPastedText('');
     };
 
+    const handleGenerateResume = () => {
+        navigate('/generate-resume');
+    };
+
     // Show existing resume UI if user has one and is not in success (post-upload) state
-    const showExistingUI = hasExistingResume && !success && !loading;
+    const showExistingUI = hasExistingResume && !success && !loading && !showUnderstanding;
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-lg p-10 max-w-2xl w-full">
-                {showExistingUI ? (
-                    // EXISTING RESUME UI
-                    <>
-                        <div className="text-center mb-6">
-                            <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <FileText className="w-10 h-10 text-blue-600" />
+
+            {showUnderstanding && resumeData ? (
+                // ==========================
+                // RESUME DNA DASHBOARD (AI Insights)
+                // ==========================
+                <div className="max-w-4xl w-full my-8">
+                    <div className="bg-white rounded-xl shadow-xl overflow-hidden">
+                        {/* Header */}
+                        <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-8 text-center text-white">
+                            <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
+                                <CheckCircle className="w-8 h-8 text-white" />
                             </div>
-                        </div>
-
-                        <h1 className="text-3xl font-bold text-gray-800 text-center mb-3">
-                            Master Resume Found
-                        </h1>
-
-                        <p className="text-gray-600 text-center mb-8 max-w-md mx-auto">
-                            You already have a master resume on file. You can view it or upload a new one to replace it.
-                        </p>
-
-                        {/* Preview */}
-                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
-                            <p className="text-xs text-gray-500 mb-2 font-semibold">CURRENT RESUME PREVIEW:</p>
-                            <p className="text-sm text-gray-700 font-mono">
-                                {resumeText.length > 200 ? resumeText.substring(0, 200) + '...' : resumeText}
+                            <h2 className="text-3xl font-bold mb-2">Resume DNA Analysis Complete!</h2>
+                            <p className="text-blue-100 max-w-xl mx-auto">
+                                I've processed your resume and created a comprehensive understanding of your professional profile.
                             </p>
                         </div>
 
-                        <div className="flex flex-col gap-3">
-                            <button
-                                onClick={() => setSuccess(true)} // Show the success/preview view
-                                className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2"
-                            >
-                                <FileText className="w-5 h-5" />
-                                View Full Resume
-                            </button>
+                        <div className="p-8 space-y-8">
 
-                            <p className="text-center text-gray-400 text-sm my-2">- OR -</p>
-
-                            <button
-                                onClick={() => setHasExistingResume(false)} // Reset to upload mode
-                                className="w-full bg-white text-gray-700 border-2 border-gray-200 px-6 py-3 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center justify-center gap-2"
-                            >
-                                <RefreshCw className="w-5 h-5" />
-                                Upload New Resume
-                            </button>
-                        </div>
-                    </>
-                ) : !success ? (
-                    // UPLOAD UI
-                    <>
-                        {/* Icon */}
-                        <div className="text-center mb-6">
-                            <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <FileText className="w-10 h-10 text-blue-600" />
-                            </div>
-                        </div>
-
-                        {/* Heading */}
-                        <h1 className="text-3xl font-bold text-gray-800 text-center mb-3">
-                            {hasExistingResume ? "Update Master Resume" : "Upload Your Master Resume"}
-                        </h1>
-
-                        {/* Subtext */}
-                        <p className="text-gray-600 text-center mb-8 max-w-md mx-auto">
-                            Upload your resume and I'll understand everything about your background.
-                            Supports PDF, DOCX, TXT, or paste text directly.
-                        </p>
-
-                        {/* Error Message */}
-                        {error && (
-                            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex items-start gap-3">
-                                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                                <p className="text-sm text-red-800">{error}</p>
-                            </div>
-                        )}
-
-                        {/* Loading State */}
-                        {loading && (
-                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                                <div className="flex items-center gap-3">
-                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                                    <p className="text-sm text-blue-800">{loadingMessage}</p>
+                            {/* Profile Section */}
+                            <div className="bg-blue-50 border border-blue-100 rounded-xl p-6">
+                                <div className="flex items-center gap-3 mb-3">
+                                    <div className="p-2 bg-blue-100 rounded-lg">
+                                        <Briefcase className="w-5 h-5 text-blue-600" />
+                                    </div>
+                                    <h3 className="text-xl font-bold text-gray-800">Professional Profile</h3>
                                 </div>
-                            </div>
-                        )}
-
-                        {/* Upload Options */}
-                        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                            {/* Upload File Button */}
-                            <button
-                                onClick={triggerFileUpload}
-                                disabled={loading}
-                                className="flex-1 bg-blue-600 text-white px-6 py-4 rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2 shadow-md hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed"
-                            >
-                                <Upload className="w-5 h-5" />
-                                Upload File
-                            </button>
-
-                            {/* Paste Text Button */}
-                            <button
-                                onClick={() => setShowPasteModal(true)}
-                                disabled={loading}
-                                className="flex-1 bg-white text-blue-600 border-2 border-blue-600 px-6 py-4 rounded-lg hover:bg-blue-50 transition-colors font-medium flex items-center justify-center gap-2 disabled:border-gray-400 disabled:text-gray-400 disabled:cursor-not-allowed"
-                            >
-                                <FileText className="w-5 h-5" />
-                                Paste Text
-                            </button>
-                        </div>
-
-                        {/* Hidden File Input */}
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept=".pdf,.docx,.txt"
-                            onChange={handleFileSelect}
-                            className="hidden"
-                        />
-
-                        {/* Selected File Display */}
-                        {selectedFile && !success && (
-                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                                <p className="text-sm text-blue-800">
-                                    <span className="font-semibold">Selected:</span> {selectedFile.name}
+                                <p className="text-gray-700 leading-relaxed text-lg">
+                                    {resumeData.understanding.profile}
                                 </p>
                             </div>
-                        )}
 
-                        {/* Back Button */}
-                        <div className="text-center mt-6">
-                            <button
-                                onClick={() => navigate('/dashboard')}
-                                className="text-gray-600 hover:text-gray-800 text-sm font-medium"
-                            >
-                                ← Back to Dashboard
-                            </button>
-                        </div>
-                    </>
-                ) : (
-                    // SUCCESS / PREVIEW UI
-                    <>
-                        {/* Success State */}
-                        <div className="text-center mb-6">
-                            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <CheckCircle className="w-10 h-10 text-green-600" />
+                            {/* Core Strengths & Value Grid */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* Core Strengths */}
+                                <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="p-2 bg-green-100 rounded-lg">
+                                            <TrendingUp className="w-5 h-5 text-green-600" />
+                                        </div>
+                                        <h3 className="text-lg font-bold text-gray-800">Core Strengths</h3>
+                                    </div>
+                                    <ul className="space-y-3">
+                                        {resumeData.understanding.coreStrengths.map((strength, idx) => (
+                                            <li key={idx} className="flex items-start gap-3 bg-gray-50 p-3 rounded-lg border-l-4 border-green-500">
+                                                <span className="text-gray-700 text-sm font-medium">{strength}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+
+                                {/* Unique Value */}
+                                <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm flex flex-col">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="p-2 bg-purple-100 rounded-lg">
+                                            <Star className="w-5 h-5 text-purple-600" />
+                                        </div>
+                                        <h3 className="text-lg font-bold text-gray-800">Unique Value Proposition</h3>
+                                    </div>
+                                    <div className="bg-purple-50 p-4 rounded-lg border border-purple-100 flex-grow flex items-center">
+                                        <p className="text-purple-900 font-medium italic text-center w-full">
+                                            "{resumeData.understanding.uniqueValue}"
+                                        </p>
+                                    </div>
+
+                                    <div className="mt-6">
+                                        <div className="flex items-center gap-3 mb-3">
+                                            <div className="p-2 bg-orange-100 rounded-lg">
+                                                <Award className="w-5 h-5 text-orange-600" />
+                                            </div>
+                                            <h3 className="text-lg font-bold text-gray-800">Career Trajectory</h3>
+                                        </div>
+                                        <p className="text-gray-600 text-sm border-t pt-3">
+                                            {resumeData.understanding.trajectory}
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
+
+                            {/* Technical Depth */}
+                            <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="p-2 bg-indigo-100 rounded-lg">
+                                        <Layers className="w-5 h-5 text-indigo-600" />
+                                    </div>
+                                    <h3 className="text-xl font-bold text-gray-800">Technical Depth</h3>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                    {Object.entries(resumeData.understanding.technicalDepth).map(([skill, level]) => (
+                                        <div key={skill} className="bg-gray-50 rounded-lg p-4 border border-gray-100 hover:border-blue-200 transition-colors">
+                                            <strong className="block text-gray-800 mb-1">{skill}</strong>
+                                            <span className="text-sm text-gray-600">{level}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Quick Stats Grid */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div className="bg-gray-50 rounded-lg p-4 text-center">
+                                    <span className="block text-3xl font-bold text-blue-600 mb-1">
+                                        {resumeData.structured.experience?.length || 0}
+                                    </span>
+                                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Years Exp</span>
+                                </div>
+                                <div className="bg-gray-50 rounded-lg p-4 text-center">
+                                    <span className="block text-3xl font-bold text-blue-600 mb-1">
+                                        {resumeData.structured.projects?.length || 0}
+                                    </span>
+                                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Projects</span>
+                                </div>
+                                <div className="bg-gray-50 rounded-lg p-4 text-center">
+                                    <span className="block text-3xl font-bold text-blue-600 mb-1">
+                                        {resumeData.structured.education?.length || 0}
+                                    </span>
+                                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Degrees</span>
+                                </div>
+                                <div className="bg-gray-50 rounded-lg p-4 text-center">
+                                    <span className="block text-3xl font-bold text-blue-600 mb-1">
+                                        {Object.keys(resumeData.structured.skills || {}).reduce((acc, cat) => acc + resumeData.structured.skills[cat].length, 0)}
+                                    </span>
+                                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Skills</span>
+                                </div>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-gray-100 mt-4">
+                                <button
+                                    onClick={handleGenerateResume}
+                                    className="flex-1 bg-blue-600 text-white px-8 py-4 rounded-xl hover:bg-blue-700 transition-colors font-bold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
+                                >
+                                    <Briefcase className="w-5 h-5" />
+                                    Generate Tailored Resume
+                                </button>
+                                <button
+                                    onClick={() => setShowUnderstanding(false)}
+                                    className="flex-1 bg-white text-gray-600 border-2 border-gray-200 px-8 py-4 rounded-xl hover:bg-gray-50 hover:text-gray-900 transition-colors font-semibold text-lg"
+                                >
+                                    Upload New Resume
+                                </button>
+                            </div>
+
                         </div>
+                    </div>
+                </div>
+            ) : (
+                // ==========================
+                // UPLOAD / PREVIEW CARD
+                // ==========================
+                <div className="bg-white rounded-xl shadow-lg p-10 max-w-2xl w-full">
+                    {showExistingUI ? (
+                        // EXISTING RESUME FOUND
+                        <>
+                            <div className="text-center mb-6">
+                                <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <FileText className="w-10 h-10 text-blue-600" />
+                                </div>
+                            </div>
 
-                        <h1 className="text-3xl font-bold text-gray-800 text-center mb-3">
-                            ✅ Resume Uploaded & Saved!
-                        </h1>
+                            <h1 className="text-3xl font-bold text-gray-800 text-center mb-3">
+                                Master Resume Found
+                            </h1>
 
-                        <p className="text-gray-600 text-center mb-6">
-                            Processing with AI...
-                        </p>
-
-                        {/* Preview */}
-                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
-                            <p className="text-xs text-gray-500 mb-2 font-semibold">PREVIEW (First 200 characters):</p>
-                            <p className="text-sm text-gray-700 font-mono">
-                                {resumeText.length > 200 ? resumeText.substring(0, 200) + '...' : resumeText}
+                            <p className="text-gray-600 text-center mb-8 max-w-md mx-auto">
+                                You already have a master resume on file. You can view the AI analysis or upload a new one.
                             </p>
-                        </div>
 
-                        {/* Stats */}
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                            <p className="text-sm text-blue-800">
-                                <span className="font-semibold">Total characters:</span> {resumeText.length.toLocaleString()}
+                            {/* Preview */}
+                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+                                <p className="text-xs text-gray-500 mb-2 font-semibold">CURRENT RESUME PREVIEW:</p>
+                                <p className="text-sm text-gray-700 font-mono">
+                                    {resumeText.length > 200 ? resumeText.substring(0, 200) + '...' : resumeText}
+                                </p>
+                            </div>
+
+                            <div className="flex flex-col gap-3">
+                                <button
+                                    onClick={() => {
+                                        // Try to load understanding if available
+                                        const checkData = async () => {
+                                            const result = await loadMasterResume(user.uid);
+                                            if (result.success && result.data?.understanding) {
+                                                setResumeData({
+                                                    understanding: result.data.understanding,
+                                                    structured: result.data.structured
+                                                });
+                                                setShowUnderstanding(true);
+                                            } else {
+                                                // If no understanding yet (older resume), maybe re-process or show simple view
+                                                setSuccess(true); // Simple preview
+                                            }
+                                        };
+                                        checkData();
+                                    }}
+                                    className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2"
+                                >
+                                    <FileText className="w-5 h-5" />
+                                    View AI Analysis
+                                </button>
+
+                                <p className="text-center text-gray-400 text-sm my-2">- OR -</p>
+
+                                <button
+                                    onClick={() => setHasExistingResume(false)} // Reset to upload mode
+                                    className="w-full bg-white text-gray-700 border-2 border-gray-200 px-6 py-3 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center justify-center gap-2"
+                                >
+                                    <RefreshCw className="w-5 h-5" />
+                                    Upload New Resume
+                                </button>
+                            </div>
+                        </>
+                    ) : !success ? (
+                        // UPLOAD FORM
+                        <>
+                            {/* Icon */}
+                            <div className="text-center mb-6">
+                                <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <FileText className="w-10 h-10 text-blue-600" />
+                                </div>
+                            </div>
+
+                            {/* Heading */}
+                            <h1 className="text-3xl font-bold text-gray-800 text-center mb-3">
+                                {hasExistingResume ? "Update Master Resume" : "Upload Your Master Resume"}
+                            </h1>
+
+                            {/* Subtext */}
+                            <p className="text-gray-600 text-center mb-8 max-w-md mx-auto">
+                                Upload your resume and I'll understand everything about your background.
+                                Supports PDF, DOCX, TXT, or paste text directly.
                             </p>
-                        </div>
 
-                        {/* Start Over Button */}
-                        <button
-                            onClick={handleStartOver}
-                            className="w-full bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 transition-colors font-medium"
-                        >
-                            ← {hasExistingResume ? "Back to Resume" : "Start Over"}
-                        </button>
-                    </>
-                )}
-            </div>
+                            {/* Error Message */}
+                            {error && (
+                                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex items-start gap-3">
+                                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                                    <p className="text-sm text-red-800">{error}</p>
+                                </div>
+                            )}
+
+                            {/* Loading State */}
+                            {loading && (
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                                    <div className="flex items-center gap-3">
+                                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                                        <p className="text-sm text-blue-800">{loadingMessage}</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Upload Options */}
+                            <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                                {/* Upload File Button */}
+                                <button
+                                    onClick={triggerFileUpload}
+                                    disabled={loading}
+                                    className="flex-1 bg-blue-600 text-white px-6 py-4 rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2 shadow-md hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                >
+                                    <Upload className="w-5 h-5" />
+                                    Upload File
+                                </button>
+
+                                {/* Paste Text Button */}
+                                <button
+                                    onClick={() => setShowPasteModal(true)}
+                                    disabled={loading}
+                                    className="flex-1 bg-white text-blue-600 border-2 border-blue-600 px-6 py-4 rounded-lg hover:bg-blue-50 transition-colors font-medium flex items-center justify-center gap-2 disabled:border-gray-400 disabled:text-gray-400 disabled:cursor-not-allowed"
+                                >
+                                    <FileText className="w-5 h-5" />
+                                    Paste Text
+                                </button>
+                            </div>
+
+                            {/* Hidden File Input */}
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept=".pdf,.docx,.txt"
+                                onChange={handleFileSelect}
+                                className="hidden"
+                            />
+
+                            {/* Selected File Display */}
+                            {selectedFile && !success && (
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                                    <p className="text-sm text-blue-800">
+                                        <span className="font-semibold">Selected:</span> {selectedFile.name}
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Back Button */}
+                            <div className="text-center mt-6">
+                                <button
+                                    onClick={() => navigate('/dashboard')}
+                                    className="text-gray-600 hover:text-gray-800 text-sm font-medium"
+                                >
+                                    ← Back to Dashboard
+                                </button>
+                            </div>
+                        </>
+                    ) : (
+                        // SIMPLE SUCCESS / PROCESSING UI (Before AI finishes)
+                        <>
+                            {/* Success State */}
+                            <div className="text-center mb-6">
+                                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <CheckCircle className="w-10 h-10 text-green-600" />
+                                </div>
+                            </div>
+
+                            <h1 className="text-3xl font-bold text-gray-800 text-center mb-3">
+                                ✅ Resume Uploaded!
+                            </h1>
+
+                            <p className="text-gray-600 text-center mb-6">
+                                {loadingMessage || "Processing with AI..."}
+                            </p>
+
+                            {/* Loading State in Success View */}
+                            {loading && (
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                                    <div className="flex items-center gap-3">
+                                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                                        <p className="text-sm text-blue-800">{loadingMessage}</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Preview */}
+                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+                                <p className="text-xs text-gray-500 mb-2 font-semibold">PREVIEW (First 200 characters):</p>
+                                <p className="text-sm text-gray-700 font-mono">
+                                    {resumeText.length > 200 ? resumeText.substring(0, 200) + '...' : resumeText}
+                                </p>
+                            </div>
+
+                            {/* Start Over Button */}
+                            {!loading && (
+                                <button
+                                    onClick={handleStartOver}
+                                    className="w-full bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                                >
+                                    ← {hasExistingResume ? "Back to Resume" : "Start Over"}
+                                </button>
+                            )}
+                        </>
+                    )}
+                </div>
+            )}
 
             {/* Paste Text Modal */}
             {showPasteModal && (
