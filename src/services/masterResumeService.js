@@ -236,3 +236,22 @@ export const saveProcessedResume = async (userId, understanding, structured) => 
         return { success: false, error: error.message };
     }
 };
+
+export const updateMasterResume = async (userId, updatedData) => {
+    try {
+        const masterResumeRef = doc(db, 'users', userId, 'masterResume', 'data');
+
+        await setDoc(masterResumeRef, {
+            understanding: updatedData.understanding,
+            structured: updatedData.structured,
+            meta: {
+                lastUpdated: serverTimestamp()
+            }
+        }, { merge: true });
+
+        return { success: true };
+    } catch (error) {
+        console.error('Error updating resume:', error);
+        return { success: false, error: error.message };
+    }
+};

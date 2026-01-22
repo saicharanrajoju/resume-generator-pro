@@ -8,7 +8,8 @@ import {
     saveMasterResumeRawText,
     loadMasterResume,
     updateProcessingStatus,
-    saveProcessedResume
+    saveProcessedResume,
+    updateMasterResume
 } from '../../services/masterResumeService';
 
 // Set worker path
@@ -317,8 +318,17 @@ function MasterResumeUpload({ existingResume, onComplete }) {
             // Update the displayed resume data if changes were made
             if (data.updatedResume) {
                 setResumeData(data.updatedResume);
-                // Optionally save back to Firebase or update local context if needed, 
-                // but the API usually handles saving to Firebase.
+
+                // Resilience: Save to Firebase from client to ensure persistence
+                // This covers cases where the serverless function couldn't access Firestore directly
+                try {
+                    console.log('Saving updated resume to Firebase from client...');
+                    await updateMasterResume(user.uid, data.updatedResume);
+                    console.log('✅ Updated resume saved successfully');
+                } catch (saveError) {
+                    console.error('Client-side save failed:', saveError);
+                    // We don't block the UI update, just log the error
+                }
             }
 
         } catch (error) {
@@ -548,8 +558,8 @@ function MasterResumeUpload({ existingResume, onComplete }) {
                                             {chatHistory.map((msg, idx) => (
                                                 <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                                     <div className={`max-w-[80%] rounded-xl p-3 ${msg.role === 'user'
-                                                            ? 'bg-blue-600 text-white rounded-br-none'
-                                                            : 'bg-white border border-slate-200 text-gray-800 rounded-bl-none shadow-sm'
+                                                        ? 'bg-blue-600 text-white rounded-br-none'
+                                                        : 'bg-white border border-slate-200 text-gray-800 rounded-bl-none shadow-sm'
                                                         }`}>
                                                         <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                                                     </div>
