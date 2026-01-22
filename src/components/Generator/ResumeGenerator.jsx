@@ -84,7 +84,7 @@ function ResumeGenerator({ masterResume }) {
     I can help you refine it further. Just tell me what you'd like to change. For example:
     - "Add 2 soft skills to the summary"
     - "Make the first job's bullets shorter"
-    - "Add more ${extractTopKeywords(jobDescription).slice(0, 2).join(' and ')} keywords"
+    - "Add more ${(extractTopKeywords(jobDescription) || []).slice(0, 2).join(' and ')} keywords"
     - "Change tone to be more action-oriented"`
                 }
             ]);
@@ -208,7 +208,7 @@ Want to make more changes?`
 
     const extractTopKeywords = (jd) => {
         // Simple keyword extraction (you can make this smarter)
-        const words = jd.toLowerCase().split(/\W+/);
+        const words = (jd || '').toLowerCase().split(/\W+/);
         const common = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for'];
         return [...new Set(words)]
             .filter(w => w.length > 4 && !common.includes(w))
@@ -362,7 +362,7 @@ Want to make more changes?`
                                         </button>
                                     </div>
                                     <div className="flex flex-wrap gap-2">
-                                        {(showAllMatched ? generatedResume.matchedKeywords : generatedResume.matchedKeywords.slice(0, 15)).map((keyword, i) => (
+                                        {(showAllMatched ? (generatedResume.matchedKeywords || []) : (generatedResume.matchedKeywords || []).slice(0, 15)).map((keyword, i) => (
                                             <span key={i} className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs">{keyword}</span>
                                         ))}
                                     </div>
@@ -382,14 +382,14 @@ Want to make more changes?`
                                         </button>
                                     </div>
                                     <div className="flex flex-wrap gap-2 mb-3">
-                                        {(showAllMissing ? generatedResume.missingKeywords : generatedResume.missingKeywords.slice(0, 10)).map((keyword, i) => (
+                                        {(showAllMissing ? (generatedResume.missingKeywords || []) : (generatedResume.missingKeywords || []).slice(0, 10)).map((keyword, i) => (
                                             <span key={i} className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-xs">{keyword}</span>
                                         ))}
                                     </div>
                                     <div className="p-3 bg-orange-50 border border-orange-200 rounded text-sm">
                                         <p className="text-orange-800 font-medium mb-1">💡 Suggestions:</p>
                                         <ul className="text-orange-700 text-xs list-disc list-inside space-y-1">
-                                            <li>Try: "Add more {generatedResume.missingKeywords.slice(0, 3).join(', ')} keywords"</li>
+                                            <li>Try: "Add more {(generatedResume.missingKeywords || []).slice(0, 3).join(', ')} keywords"</li>
                                             <li>Or use quick action: "More keywords" below</li>
                                         </ul>
                                     </div>
@@ -405,7 +405,7 @@ Want to make more changes?`
                                     </h4>
                                     <ul className="text-sm text-purple-800 space-y-2 list-disc list-inside">
                                         {generatedResume.missingKeywords && generatedResume.missingKeywords.length > 0 && (
-                                            <li>Add these missing keywords: <span className="font-semibold">{generatedResume.missingKeywords.slice(0, 5).join(', ')}</span></li>
+                                            <li>Add these missing keywords: <span className="font-semibold">{(generatedResume.missingKeywords || []).slice(0, 5).join(', ')}</span></li>
                                         )}
                                         {generatedResume.atsScore < 90 && <li>Consider using the "More keywords" quick action below</li>}
                                         {generatedResume.atsScore >= 90 && generatedResume.atsScore < 95 && <li>You're close! Try rephrasing bullets to include more JD terminology</li>}
@@ -445,7 +445,7 @@ Want to make more changes?`
                                         {generatedResume.resume.skills && (
                                             <div className="mb-4">
                                                 <p className="text-xs font-bold text-gray-700 mb-1 uppercase">Skills</p>
-                                                {Object.entries(generatedResume.resume.skills).slice(0, 3).map(([cat, skills]) => (
+                                                {Object.entries(generatedResume.resume.skills || {}).slice(0, 3).map(([cat, skills]) => (
                                                     <p key={cat} className="text-sm mb-1">
                                                         <span className="font-semibold">{cat}:</span> {Array.isArray(skills) ? skills.join(', ') : skills}
                                                     </p>
@@ -459,7 +459,7 @@ Want to make more changes?`
                                                 <p className="text-xs font-bold text-gray-700 mb-1 uppercase">First Job</p>
                                                 <p className="text-sm font-semibold">{generatedResume.resume.experience[0].position} at {generatedResume.resume.experience[0].company}</p>
                                                 <ul className="list-disc list-inside text-xs text-gray-700 mt-2 space-y-1">
-                                                    {generatedResume.resume.experience[0].achievements.slice(0, 3).map((ach, i) => (
+                                                    {(generatedResume.resume.experience[0].achievements || []).slice(0, 3).map((ach, i) => (
                                                         <li key={i}>{ach}</li>
                                                     ))}
                                                 </ul>
@@ -527,7 +527,7 @@ Want to make more changes?`
                                                 💪 Stronger tone
                                             </button>
                                             <button
-                                                onClick={() => setUserMessage(`Add more occurrences of these keywords: ${extractTopKeywords(jobDescription).slice(0, 3).join(', ')}`)}
+                                                onClick={() => setUserMessage(`Add more occurrences of these keywords: ${(extractTopKeywords(jobDescription) || []).slice(0, 3).join(', ')}`)}
                                                 className="text-xs bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-full"
                                             >
                                                 🔑 More keywords
