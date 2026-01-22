@@ -1,5 +1,3 @@
-const pdfParse = require('pdf-parse');
-
 export const config = {
     api: {
         bodyParser: {
@@ -9,6 +7,9 @@ export const config = {
 };
 
 export default async function handler(req, res) {
+    console.log('PDF extract endpoint called');
+    console.log('Method:', req.method);
+
     // CORS headers
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -26,16 +27,33 @@ export default async function handler(req, res) {
 
     try {
         const { fileBuffer } = req.body;
+        console.log('FileBuffer received:', !!fileBuffer);
 
         if (!fileBuffer) {
+            console.log('No file buffer provided');
             return res.status(400).json({ error: 'No file provided' });
+        }
+
+        // Try importing pdf-parse
+        let pdfParse;
+        try {
+            pdfParse = require('pdf-parse');
+            console.log('pdf-parse loaded successfully');
+        } catch (importError) {
+            console.error('Failed to import pdf-parse:', importError);
+            return res.status(500).json({
+                error: 'PDF library not available',
+                details: 'Please install pdf-parse dependency'
+            });
         }
 
         // Convert base64 to buffer
         const buffer = Buffer.from(fileBuffer, 'base64');
+        console.log('Buffer created, size:', buffer.length);
 
         // Extract text from PDF
         const data = await pdfParse(buffer);
+        console.log('PDF parsed successfully, text length:', data.text?.length);
 
         return res.status(200).json({
             text: data.text,
