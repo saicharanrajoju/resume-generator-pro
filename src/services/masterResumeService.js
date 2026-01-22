@@ -216,3 +216,23 @@ export const testFirebaseSave = async (userId) => {
         return { success: false, error: error.message };
     }
 };
+
+export const saveProcessedResume = async (userId, understanding, structured) => {
+    try {
+        const masterResumeRef = doc(db, 'users', userId, 'masterResume', 'data');
+
+        await setDoc(masterResumeRef, {
+            understanding: understanding,
+            structured: structured,
+            meta: {
+                processingStatus: 'complete',
+                lastUpdated: serverTimestamp()
+            }
+        }, { merge: true });
+
+        return { success: true };
+    } catch (error) {
+        console.error('Error saving processed resume:', error);
+        return { success: false, error: error.message };
+    }
+};

@@ -4,7 +4,12 @@ import { useNavigate } from 'react-router-dom';
 import { Upload, FileText, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf';
-import { saveMasterResumeRawText, loadMasterResume } from '../../services/masterResumeService';
+import {
+    saveMasterResumeRawText,
+    loadMasterResume,
+    updateProcessingStatus,
+    saveProcessedResume
+} from '../../services/masterResumeService';
 
 // Set worker path
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
@@ -67,9 +72,44 @@ function MasterResumeUpload({ existingResume, onComplete }) {
 
             if (result.success) {
                 console.log('✅ Resume saved to Firebase');
-                setResumeText(text);
-                setSuccess(true);
-                setHasExistingResume(true);
+
+                // Trigger AI processing
+                try {
+                    setLoadingMessage('Understanding your background with AI...');
+                    await updateProcessingStatus(user.uid, 'processing');
+
+                    // Call Claude API to process
+                    console.log('Calling process-resume API...');
+                    const processResponse = await fetch('/api/process-resume', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ resumeText: text })
+                    });
+
+                    if (!processResponse.ok) {
+                        const err = await processResponse.json();
+                        throw new Error(err.error || 'Processing failed');
+                    }
+
+                    const { understanding, structured } = await processResponse.json();
+
+                    // Save processed data
+                    console.log('Saving processed data...');
+                    await saveProcessedResume(user.uid, understanding, structured);
+
+                    console.log('✅ AI Processing complete');
+                    setResumeText(text);
+                    setSuccess(true);
+                    setHasExistingResume(true);
+                } catch (procError) {
+                    console.error('AI Processing error:', procError);
+                    await updateProcessingStatus(user.uid, 'error');
+                    // Still show success for upload, but warn about AI
+                    setResumeText(text);
+                    setSuccess(true);
+                    setHasExistingResume(true);
+                    setError('Resume saved, but AI analysis failed. Please try again later.');
+                }
             } else {
                 console.error('Failed to save resume:', result.error);
                 setError(`Could not save resume: ${result.error}`);
