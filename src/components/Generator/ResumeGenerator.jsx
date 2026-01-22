@@ -4,6 +4,7 @@ import { claudeService } from '../../services/claudeService';
 import docxService from '../../services/docxService';
 import { useAuth } from '../../hooks/useAuth';
 import { usageService } from '../../services/usageService';
+import { estimateResumePages } from '../../utils/resumePageEstimator';
 
 function ResumeGenerator({ masterResume }) {
     const { user } = useAuth();
@@ -24,6 +25,7 @@ function ResumeGenerator({ masterResume }) {
     const [showAllMatched, setShowAllMatched] = useState(false);
     const [showAllMissing, setShowAllMissing] = useState(false);
     const [showPreview, setShowPreview] = useState(true);
+    const [pageAnalysis, setPageAnalysis] = useState(null);
 
     const handleGenerate = async () => {
         if (!jobDescription.trim()) {
@@ -66,7 +68,13 @@ function ResumeGenerator({ masterResume }) {
 
             // After successful generation:
             setGeneratedResume(result);
+
             setResumeHistory([result]); // Start history
+
+            // Calculate page estimation
+            const analysis = estimateResumePages(result.resume);
+            setPageAnalysis(analysis);
+
             setShowRefinementChat(true); // Show chat
             setChatMessages([
                 {
@@ -144,7 +152,12 @@ Want to make more changes?`
 
             // Update resume and add to history
             setResumeHistory(prev => [...prev, refinedResume]);
+
             setGeneratedResume(refinedResume);
+
+            // Recalculate page estimation
+            const analysis = estimateResumePages(refinedResume.resume);
+            setPageAnalysis(analysis);
 
         } catch (err) {
             console.error('Refinement error:', err);
@@ -165,7 +178,12 @@ Want to make more changes?`
             const newHistory = [...resumeHistory];
             newHistory.pop();
             setResumeHistory(newHistory);
-            setGeneratedResume(newHistory[newHistory.length - 1]);
+            const prevResume = newHistory[newHistory.length - 1];
+            setGeneratedResume(prevResume);
+
+            // Recalibrate page estimation
+            const analysis = estimateResumePages(prevResume.resume);
+            setPageAnalysis(analysis);
 
             setChatMessages(prev => [...prev, {
                 role: 'assistant',
@@ -287,6 +305,22 @@ Want to make more changes?`
                                     {generatedResume.atsScore < 85 && '⚠️ Consider adding more relevant keywords.'}
                                 </p>
                             </div>
+
+                            {/* Page Estimation Card */}
+                            {pageAnalysis && (
+                                <div className={`mb-6 p-4 rounded-lg border ${pageAnalysis.isOverTwoPages ? 'bg-yellow-50 border-yellow-200' : 'bg-green-50 border-green-200'}`}>
+                                    <h4 className={`font-bold flex items-center gap-2 ${pageAnalysis.isOverTwoPages ? 'text-yellow-800' : 'text-green-800'}`}>
+                                        <span>{pageAnalysis.isOverTwoPages ? '⚠️' : '✅'}</span>
+                                        <span>Length Estimate: {pageAnalysis.estimatedPages} Pages</span>
+                                    </h4>
+                                    <p className={`text-sm mt-1 ${pageAnalysis.isOverTwoPages ? 'text-yellow-700' : 'text-green-700'}`}>
+                                        {pageAnalysis.recommendation}
+                                    </p>
+                                    <p className="text-xs text-gray-500 mt-2">
+                                        *Based on Times New Roman 11pt, 0.5" margins
+                                    </p>
+                                </div>
+                            )}
 
                             {/* Keyword Analysis Stats */}
                             {generatedResume.keywordAnalysis && (
@@ -553,6 +587,7 @@ Want to make more changes?`
                                         setChatMessages([]);
                                         setResumeHistory([]);
                                         setJobDescription('');
+                                        setPageAnalysis(null);
                                     }}
                                     className="px-6 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 font-medium transition-colors"
                                 >
@@ -572,7 +607,7 @@ Want to make more changes?`
                     )}
                 </div>
             </div>
-        </div>
+        </div >
     );
 }
 

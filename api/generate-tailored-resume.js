@@ -1,3 +1,5 @@
+import { estimateResumePages } from '../src/utils/resumePageEstimator';
+
 export default async function handler(req, res) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Credentials', true);
@@ -130,7 +132,31 @@ This helps determine which new keywords would be believable.`, 1500)
 
     console.log('🧠 Stage 3: Strategic keyword selection...');
 
-    const stage3Prompt = `You are a strategic resume advisor. Your goal is to select 3-7 keywords that improve ATS matching while maintaining authenticity.
+    const stage3Prompt = `⚠️ CRITICAL: Resume must fit in 2 pages (~104 total lines).
+
+TEMPLATE SPECS:
+- Font: Times New Roman 11pt, 1.15 spacing
+- Capacity: ~52 lines per page
+- 2 pages = ~104 total lines
+
+FIXED SECTIONS (~20 lines):
+- Header: 4 lines
+- Summary: 4 lines  
+- Skills (6 categories): 8 lines
+- Section headers: 4 lines
+
+CONTENT BUDGET: ~84 lines remaining
+
+GUIDELINES FOR CONTENT:
+- 3 jobs with 4 bullets each = ~18 lines
+- 3 projects with 2 bullets each = ~12 lines
+- Education (2 degrees) = ~5 lines
+- Certifications = ~2 lines
+TOTAL: ~37 lines (well under budget)
+
+If adding keywords would push resume over 2 pages, be MORE selective.
+
+You are a strategic resume advisor. Your goal is to select 3-7 keywords that improve ATS matching while maintaining authenticity.
 
 ⚠️ PHILOSOPHY: This is a GOLDEN RESUME. Preserve quality over perfect ATS scores.
 
@@ -184,7 +210,13 @@ Be conservative. Authenticity over ATS score.`;
 
     console.log('⚙️ Stage 4: Optimizing skills section...');
 
-    const stage4Prompt = `Add selected keywords to skills section while preserving structure.
+    const stage4Prompt = `⚠️ PAGE LIMIT: Resume must fit 2 pages.
+
+Current skills section: ~8 lines
+Do NOT add so many keywords that skills section exceeds 10 lines.
+Each additional line reduces space for experience/projects.
+
+Add selected keywords to skills section while preserving structure.
 
 ⚠️ CRITICAL RULES:
 1. Do NOT remove ANY existing skills
@@ -303,6 +335,18 @@ Be accurate with math.`;
     const atsAnalysis = parseJSON(stage6Response);
 
     console.log(`✅ Stage 6 complete. ATS Score: ${atsAnalysis.ats_score}%`);
+
+    // ═══════════════════════════════════════════════════════════════
+    // PAGE COUNT VALIDATION
+    // ═══════════════════════════════════════════════════════════════
+
+    console.log('📄 Estimating page count...');
+    const pageEstimate = estimateResumePages(finalResume);
+
+    // Validate page count before returning
+    if (pageEstimate.isOverTwoPages) {
+      console.warn(`⚠️ WARNING: Estimated ${pageEstimate.estimatedPages} pages (over 2 page limit)`);
+    }
 
     // ═══════════════════════════════════════════════════════════════
     // FINAL OUTPUT: Comprehensive Report
