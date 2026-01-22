@@ -1,48 +1,48 @@
 export const config = {
-    maxDuration: 60, // Set timeout to 60 seconds
-    api: {
-        bodyParser: {
-            sizeLimit: '10mb',
-        },
+  maxDuration: 60, // Set timeout to 60 seconds
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb',
     },
+  },
 };
 
 export default async function handler(req, res) {
-    // CORS headers
-    res.setHeader('Access-Control-Allow-Credentials', true);
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  // CORS headers
+  res.setHeader('Access-Control-Allow-Credentials', true);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-    if (req.method === 'OPTIONS') {
-        return res.status(200).end();
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  try {
+    const { resumeText } = req.body;
+
+    if (!resumeText || resumeText.length < 100) {
+      return res.status(400).json({ error: 'Resume text too short' });
     }
 
-    if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method not allowed' });
-    }
-
-    try {
-        const { resumeText } = req.body;
-
-        if (!resumeText || resumeText.length < 100) {
-            return res.status(400).json({ error: 'Resume text too short' });
-        }
-
-        // Call Claude to create semantic understanding
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': process.env.CLAUDE_API_KEY,
-                'anthropic-version': '2023-06-01'
-            },
-            body: JSON.stringify({
-                model: 'claude-3-5-sonnet-20241022',
-                max_tokens: 4096,
-                messages: [{
-                    role: 'user',
-                    content: `You are a resume analysis expert. Read this resume and create a comprehensive semantic understanding.
+    // Call Claude to create semantic understanding
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.CLAUDE_API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250110',
+        max_tokens: 4096,
+        messages: [{
+          role: 'user',
+          content: `You are a resume analysis expert. Read this resume and create a comprehensive semantic understanding.
 
 RESUME TEXT:
 ${resumeText}
@@ -112,34 +112,34 @@ Create a semantic understanding that captures the essence of this person's backg
 }
 
 Be thorough and accurate. Extract ALL information from the resume.`
-                }]
-            })
-        });
+        }]
+      })
+    });
 
-        if (!response.ok) {
-            throw new Error(`Claude API error: ${response.status}`);
-        }
-
-        const data = await response.json();
-        const text = data.content[0].text;
-
-        // Parse JSON from Claude's response
-        const firstBrace = text.indexOf('{');
-        const lastBrace = text.lastIndexOf('}');
-        const jsonStr = text.substring(firstBrace, lastBrace + 1);
-        const parsed = JSON.parse(jsonStr);
-
-        return res.status(200).json({
-            success: true,
-            understanding: parsed.understanding,
-            structured: parsed.structured
-        });
-
-    } catch (error) {
-        console.error('Resume processing error:', error);
-        return res.status(500).json({
-            error: 'Failed to process resume',
-            details: error.message
-        });
+    if (!response.ok) {
+      throw new Error(`Claude API error: ${response.status}`);
     }
+
+    const data = await response.json();
+    const text = data.content[0].text;
+
+    // Parse JSON from Claude's response
+    const firstBrace = text.indexOf('{');
+    const lastBrace = text.lastIndexOf('}');
+    const jsonStr = text.substring(firstBrace, lastBrace + 1);
+    const parsed = JSON.parse(jsonStr);
+
+    return res.status(200).json({
+      success: true,
+      understanding: parsed.understanding,
+      structured: parsed.structured
+    });
+
+  } catch (error) {
+    console.error('Resume processing error:', error);
+    return res.status(500).json({
+      error: 'Failed to process resume',
+      details: error.message
+    });
+  }
 }
