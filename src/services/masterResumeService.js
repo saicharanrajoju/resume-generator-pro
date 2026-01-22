@@ -203,3 +203,16 @@ export const loadMasterResume = async (userId) => {
         return { success: false, error: error.message };
     }
 };
+
+export const testFirebaseSave = async (userId) => {
+    try {
+        console.log('Testing Firebase with userId:', userId);
+        const testRef = doc(db, 'users', userId, 'test', 'data');
+        await setDoc(testRef, { test: 'Hello', timestamp: serverTimestamp() });
+        console.log('✅ Test write successful');
+        return { success: true };
+    } catch (error) {
+        console.error('❌ Test write failed:', error);
+        return { success: false, error: error.message };
+    }
+};

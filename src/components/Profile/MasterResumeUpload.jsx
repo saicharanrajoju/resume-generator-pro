@@ -44,11 +44,26 @@ function MasterResumeUpload({ existingResume, onComplete }) {
 
     // Helper to save resume text
     const saveResumeToFirebase = async (text) => {
-        if (!user?.uid) return;
-
         try {
+            console.log('Attempting to save resume...');
+            console.log('User ID:', user?.uid);
+            console.log('Resume text length:', text?.length);
+
+            if (!user?.uid) {
+                console.error('No user ID available for save');
+                setError('No user ID available. Please ensure you are logged in.');
+                return;
+            }
+
+            if (!text || text.trim().length === 0) {
+                console.error('No resume text to save');
+                throw new Error('No resume text to save');
+            }
+
             setLoadingMessage('Saving to your account...');
             const result = await saveMasterResumeRawText(user.uid, text);
+
+            console.log('Firebase save result:', result);
 
             if (result.success) {
                 console.log('✅ Resume saved to Firebase');
@@ -57,11 +72,11 @@ function MasterResumeUpload({ existingResume, onComplete }) {
                 setHasExistingResume(true);
             } else {
                 console.error('Failed to save resume:', result.error);
-                setError('Resume loaded but could not save. Please try again.');
+                setError(`Could not save resume: ${result.error}`);
             }
         } catch (error) {
-            console.error('Firebase error:', error);
-            setError('Resume loaded but could not save. Please try again.');
+            console.error('Firebase save error (catch block):', error);
+            setError(`Save error: ${error.message}`);
         }
     };
 
