@@ -274,6 +274,50 @@ function MasterResumeUpload({ existingResume, onComplete }) {
         navigate('/generate-resume');
     };
 
+    // Handle viewing analysis for existing resume
+    const handleViewAnalysis = async () => {
+        try {
+            console.log('View Analysis clicked');
+            setLoading(true);
+            setLoadingMessage('Loading AI analysis...');
+            setError('');
+
+            // Load the full resume data from Firebase
+            const result = await loadMasterResume(user.uid);
+            console.log('Loaded data:', result);
+
+            if (result.success && result.data) {
+                const { understanding, structured, meta } = result.data;
+                console.log('Understanding:', understanding);
+                console.log('Structured:', structured);
+
+                // Check if AI processing was completed
+                if (!understanding || !structured) {
+                    console.log('No understanding found, showing raw text preview');
+                    setSuccess(true); // Fallback to simple preview
+                    setLoading(false);
+                    return;
+                }
+
+                // Set the data to display
+                setResumeData({ understanding, structured });
+                setShowUnderstanding(true);
+                // setHasExistingResume(false); // Can keep this true if we want to show 'back' button logic differently, but request says hide existing resume card logic
+                // The current UI logic shows dashboard if showUnderstanding is true, so checks below handle visibility
+                setLoading(false);
+
+            } else {
+                setError('Could not load resume data');
+                setLoading(false);
+            }
+
+        } catch (error) {
+            console.error('Error loading analysis:', error);
+            setError('Failed to load AI analysis');
+            setLoading(false);
+        }
+    };
+
     // Show existing resume UI if user has one and is not in success (post-upload) state
     const showExistingUI = hasExistingResume && !success && !loading && !showUnderstanding;
 
@@ -457,23 +501,7 @@ function MasterResumeUpload({ existingResume, onComplete }) {
 
                             <div className="flex flex-col gap-3">
                                 <button
-                                    onClick={() => {
-                                        // Try to load understanding if available
-                                        const checkData = async () => {
-                                            const result = await loadMasterResume(user.uid);
-                                            if (result.success && result.data?.understanding) {
-                                                setResumeData({
-                                                    understanding: result.data.understanding,
-                                                    structured: result.data.structured
-                                                });
-                                                setShowUnderstanding(true);
-                                            } else {
-                                                // If no understanding yet (older resume), maybe re-process or show simple view
-                                                setSuccess(true); // Simple preview
-                                            }
-                                        };
-                                        checkData();
-                                    }}
+                                    onClick={handleViewAnalysis}
                                     className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2"
                                 >
                                     <FileText className="w-5 h-5" />
