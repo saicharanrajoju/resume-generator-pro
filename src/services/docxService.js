@@ -205,7 +205,7 @@ const docxService = {
                 })
             );
 
-            Object.entries(resumeData.skills).forEach(([category, skills]) => {
+            Object.entries(resumeData.skills || {}).forEach(([category, skills]) => {
                 sections.push(
                     new Paragraph({
                         children: [
@@ -313,8 +313,10 @@ const docxService = {
                 );
 
                 // Bullets with tighter spacing
-                exp.achievements.forEach((achievement, achIndex) => {
-                    const isLastBullet = achIndex === exp.achievements.length - 1;
+                // Bullets with tighter spacing
+                const achievements = exp.achievements || exp.bullets || exp.responsibilities || [];
+                achievements.forEach((achievement, achIndex) => {
+                    const isLastBullet = achIndex === achievements.length - 1;
                     const isLastJob = index === resumeData.experience.length - 1;
 
                     sections.push(
@@ -427,7 +429,8 @@ const docxService = {
                     );
                 }
 
-                if (project.technologies && project.technologies.length > 0) {
+                const technologies = project.technologies || [];
+                if (technologies.length > 0) {
                     const isLastProject = index === resumeData.projects.length - 1;
 
                     sections.push(
@@ -441,7 +444,7 @@ const docxService = {
                                     color: '000000'
                                 }),
                                 new TextRun({
-                                    text: project.technologies.join(', '),
+                                    text: technologies.join(', '),
                                     size: 22,
                                     font: 'Times New Roman',
                                     color: '000000'
