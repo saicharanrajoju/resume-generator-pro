@@ -231,6 +231,21 @@ export default async function handler(req, res) {
     5. Preserves all their competitive advantages
     6. Fits in 2 pages
 
+    **CRITICAL REQUIREMENTS:**
+
+    1. ATS TARGET: You MUST achieve 85-90% keyword match with the job description.
+       - Identify important keywords in the JD
+       - Ensure 85-90% of them appear naturally in the resume
+       - Add them cleverly so it is belivable 
+
+    critical: never touch the projects section leave lit like that 
+
+
+    2. LOCATION MATCHING: 
+       - If the JD mentions specific locations (city, state), update the resume header location to match
+       - If the JD says "Remote" or has no location, keep the current location unchanged
+       - Format as "City, State" (e.g., "Birmingham, AL")
+
     ═══════════════════════════════════════════════════════
     SPECIFIC INSTRUCTIONS:
     ═══════════════════════════════════════════════════════
