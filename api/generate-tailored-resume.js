@@ -30,19 +30,66 @@ export default async function handler(req, res) {
     console.log('📦 Using stored resume structure');
 
     // Normalize field names from whatever is in parsedData
-    const resumeStructure = {
+    // ═══════════════════════════════════════════════════════════════
+    // INTELLIGENT FALLBACK: Try fast mapping, use Claude if needed
+    // ═══════════════════════════════════════════════════════════════
+
+    console.log('📦 Attempting quick field mapping...');
+
+    // QUICK MAPPING: Try common field name variations
+    let resumeStructure = {
       summary: parsedData.summary || parsedData.professionalSummary || '',
 
       skills: parsedData.skills || {},
 
-      experience: parsedData.experience || parsedData.workExperience || [],
+      experience: (parsedData.experience || parsedData.workExperience || []).map(job => ({
+        company: job.company || job.employer || '',
+        position: job.position || job.title || job.role || '',
+        period: job.period || job.dates || job.duration || '',
+        location: job.location || '',
+        achievements: job.achievements || job.bullets || job.responsibilities || []
+      })),
 
       projects: parsedData.projects || [],
 
-      education: parsedData.education || [],
+      education: (parsedData.education || []).map(edu => ({
+        school: edu.school || edu.institution || edu.university || edu.institutionName || '',
+        degree: edu.degree || edu.degreeType || '',
+        field: edu.field || edu.major || edu.fieldOfStudy || '',
+        year: edu.year || edu.graduationYear || edu.gradYear || '',
+        gpa: edu.gpa || '',
+        relevantCoursework: edu.relevantCoursework || edu.coursework || ''
+      })),
 
       certifications: parsedData.certifications || []
     };
+
+    // VALIDATE: Check if we have all critical fields
+    const validation = validateResumeData(resumeStructure);
+
+    // INTELLIGENT FALLBACK: Only if quick mapping failed
+    if (!validation.isValid) {
+      console.warn(`⚠️ Missing fields: ${validation.missingFields.join(', ')}`);
+      console.log('🧠 Using Claude to extract missing data...');
+
+      try {
+        // Extract ONLY what's missing
+        const extracted = await intelligentExtract(masterResumeText, validation.missingFields);
+
+        // Merge with quick mapping
+        if (extracted.education) resumeStructure.education = extracted.education;
+        if (extracted.experience) resumeStructure.experience = extracted.experience;
+        if (extracted.summary) resumeStructure.summary = extracted.summary;
+        if (extracted.skills) resumeStructure.skills = extracted.skills;
+
+        console.log('✅ Intelligent extraction successful');
+      } catch (error) {
+        console.error('❌ Intelligent extraction failed:', error.message);
+        console.log('⚠️ Continuing with partial data...');
+      }
+    } else {
+      console.log('✅ Quick mapping successful (no Claude call needed)');
+    }
 
     console.log('✅ Resume structure ready:', {
       hasExperience: resumeStructure.experience.length > 0,
@@ -122,6 +169,97 @@ export default async function handler(req, res) {
         const jsonStr = text.substring(firstBrace, lastBrace + 1);
         return JSON.parse(jsonStr);
       }
+    }
+
+    // Validate if we have all critical fields
+    function validateResumeData(data) {
+      const missing = [];
+
+      // Check summary
+      if (!data.summary || data.summary.length < 50) {
+        missing.push('summary');
+      }
+
+      // Check skills
+      if (!data.skills || Object.keys(data.skills).length === 0) {
+        missing.push('skills');
+      }
+
+      // Check experience exists and has achievements
+      if (!data.experience || data.experience.length === 0) {
+        missing.push('experience');
+      } else {
+        const firstJob = data.experience[0];
+        if (!firstJob.achievements || firstJob.achievements.length === 0) {
+          missing.push('experience.achievements');
+        }
+      }
+
+      // Check education exists and has school names
+      if (!data.education || data.education.length === 0) {
+        missing.push('education');
+      } else {
+        const firstEdu = data.education[0];
+        if (!firstEdu.school || firstEdu.school.length === 0) {
+          missing.push('education.school');
+        }
+      }
+
+      return {
+        isValid: missing.length === 0,
+        missingFields: missing
+      };
+    }
+
+    // Intelligent extraction for only missing fields
+    async function intelligentExtract(resumeText, missingFields) {
+      console.log(`🧠 Claude extracting: ${missingFields.join(', ')}`);
+
+      let instructions = 'Extract these specific sections from the resume:\n\n';
+
+      if (missingFields.includes('education') || missingFields.includes('education.school')) {
+        instructions += `
+    EDUCATION: For each degree, extract:
+    - school/university name (CRITICAL - must not be empty)
+    - degree type (Bachelor's, Master's, etc.)
+    - field of study
+    - graduation year
+    - GPA if mentioned
+    `;
+      }
+
+      if (missingFields.includes('experience') || missingFields.includes('experience.achievements')) {
+        instructions += `
+    EXPERIENCE: For each job, extract:
+    - company name
+    - job title
+    - dates worked
+    - achievements (array of bullet points describing what they did)
+    `;
+      }
+
+      if (missingFields.includes('summary')) {
+        instructions += `
+    SUMMARY: Create a 2-3 sentence professional summary from the resume content.
+    `;
+      }
+
+      const prompt = `${instructions}
+
+    RESUME:
+    ${resumeText}
+
+    Output ONLY valid JSON with the requested sections. No markdown, no explanations.
+
+    Example format:
+    {
+      "education": [{"school": "University Name", "degree": "Master of Science", "field": "Computer Science", "year": "2024", "gpa": "4.0"}],
+      "experience": [{"company": "Company", "position": "Title", "period": "2022-2024", "achievements": ["bullet 1", "bullet 2"]}],
+      "summary": "Professional summary text"
+    }`;
+
+      const response = await callClaude(prompt, 2500);
+      return parseJSON(response);
     }
 
     // Page estimation function (inline to avoid ES module issues)
