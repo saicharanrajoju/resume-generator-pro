@@ -92,12 +92,36 @@ export default async function handler(req, res) {
 
     // JSON parser
     function parseJSON(text) {
-      const firstBrace = text.indexOf('{');
-      const lastBrace = text.lastIndexOf('}');
-      if (firstBrace === -1 || lastBrace === -1) {
-        throw new Error('No JSON found in response');
+      try {
+        // First, try to parse directly (in case it's already pure JSON)
+        return JSON.parse(text);
+      } catch (e) {
+        // If that fails, extract JSON from mixed content
+
+        // Try extracting between ```json and ``` if present
+        const jsonBlockMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
+        if (jsonBlockMatch) {
+          return JSON.parse(jsonBlockMatch[1]);
+        }
+
+        // Try extracting between ``` and ``` 
+        const codeBlockMatch = text.match(/```\s*([\s\S]*?)\s*```/);
+        if (codeBlockMatch) {
+          return JSON.parse(codeBlockMatch[1]);
+        }
+
+        // Fall back to brace extraction
+        const firstBrace = text.indexOf('{');
+        const lastBrace = text.lastIndexOf('}');
+
+        if (firstBrace === -1 || lastBrace === -1) {
+          console.error('Failed to parse JSON. Raw text:', text.substring(0, 500));
+          throw new Error('No JSON found in Claude response');
+        }
+
+        const jsonStr = text.substring(firstBrace, lastBrace + 1);
+        return JSON.parse(jsonStr);
       }
-      return JSON.parse(text.substring(firstBrace, lastBrace + 1));
     }
 
     // Page estimation function (inline to avoid ES module issues)
@@ -192,7 +216,8 @@ Output as JSON:
   }
 }
 
-Be thorough. Extract ALL technical terms.`, 1500),
+Be thorough. Extract ALL technical terms.
+Output ONLY valid JSON. No markdown, no explanations, no code blocks. Just the raw JSON object.`, 1500),
 
       // STAGE 2: Analyze Resume (Compressed - only skills + project names)
       callClaude(`Analyze what this candidate knows based on their background.
@@ -213,7 +238,8 @@ Output as JSON:
   "seniority_indicators": ["2+ years professional experience", "Fortune 500 companies"]
 }
 
-This helps determine which new keywords would be believable.`, 1500)
+This helps determine which new keywords would be believable.
+Output ONLY valid JSON. No markdown, no explanations, no code blocks. Just the raw JSON object.`, 1500)
     ]);
 
     const jdData = parseJSON(jdKeywords);
@@ -292,7 +318,8 @@ Output as JSON:
   ]
 }
 
-Be conservative. Authenticity over ATS score.`;
+Be conservative. Authenticity over ATS score.
+Output ONLY valid JSON. No markdown, no explanations, no code blocks. Just the raw JSON object.`;
 
     const stage3Response = await callClaude(stage3Prompt, 2500);
     const keywordSelection = parseJSON(stage3Response);
@@ -343,7 +370,8 @@ Output COMPLETE updated skills section (all 6 categories) as JSON:
   "Production & MLOps": [...],
   "ML & NLP": [...],
   "Data & Visualization": [...]
-}`;
+}
+Output ONLY valid JSON. No markdown, no explanations, no code blocks. Just the raw JSON object.`;
 
     const stage4Response = await callClaude(stage4Prompt, 2000);
     const optimizedSkills = parseJSON(stage4Response);
@@ -422,7 +450,8 @@ Output as JSON:
   "missing_keywords": ["Airflow", "Snowflake"]
 }
 
-Be accurate with math.`;
+Be accurate with math.
+Output ONLY valid JSON. No markdown, no explanations, no code blocks. Just the raw JSON object.`;
 
     const stage6Response = await callClaude(stage6Prompt, 2000);
     const atsAnalysis = parseJSON(stage6Response);
