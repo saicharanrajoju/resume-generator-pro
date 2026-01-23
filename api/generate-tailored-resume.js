@@ -226,12 +226,14 @@ export default async function handler(req, res) {
 
     1. HIGHLIGHTS the candidate's MOST RELEVANT experience for THIS job
     2. Uses language and keywords from the JD naturally
-    3. Gets 90-95%+ ATS match
-    4. Stays 100% truthful (never add skills they don't have)
+    3. 
+    4. 
     5. Preserves all their competitive advantages
     6. Fits in 2 pages
 
     **CRITICAL REQUIREMENTS:**
+
+    always make sure when the resume is done it should be beliveable by recruiter it shouldnt sound like made up
 
     1. ATS TARGET: You MUST achieve 85-90% keyword match with the job description.
        - Identify important keywords in the JD
@@ -263,7 +265,6 @@ export default async function handler(req, res) {
     **SKILLS:**
     - Keep ALL existing skills (especially unique ones like MLC-LLM, CrewAI, Apache TVM, MCP)
     - Add 5-10 keywords from the JD that candidate actually knows
-    - Only add if you can find evidence in their resume they've used it
     - Maintain exactly 6 categories in this order:
       1. LLM & GenAI
       2. Programming & ML Frameworks
@@ -276,15 +277,11 @@ export default async function handler(req, res) {
     - Keep ALL jobs and ALL bullets
     - Preserve EVERY metric exactly ($11M, 79%, 120M+, 99.8%, etc.)
     - Enhance bullets by adding relevant technical terms WHERE THEY FIT
-    - Only add keywords if the work actually used them
 
-    Rules for enhancement:
-    ✅ GOOD: "Built models in BigQuery ML" → "Built classification models using Python and BigQuery ML on GCP"
-       (Adding "Python" and "GCP" is truthful if they were actually used)
+    
+  if there is any critical or important keywords in the missing keywords
 
-    ❌ BAD: "Built models" → "Built models using Kubernetes and Airflow"
-       (Don't add tools they never mentioned)
-
+try to fit it in resume naturally in the professional experience or technical skills
     **PROJECTS:**
     - Include ALL projects
     - Reorder by relevance (most relevant to JD first)
@@ -301,11 +298,10 @@ export default async function handler(req, res) {
     ═══════════════════════════════════════════════════════
 
     ❌ NEVER:
-    - Add technologies/tools the candidate hasn't used
-    - Exaggerate experience or responsibilities  
+     
     - Change any numbers, percentages, or metrics
     - Remove important achievements
-    - Add work experience they don't have
+    - dont touch the projects section leave lit like that 
 
     ✅ ALWAYS:
     - Preserve all competitive advantages (metrics, modern tech, unique projects)
