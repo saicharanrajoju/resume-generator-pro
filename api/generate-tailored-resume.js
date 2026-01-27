@@ -127,8 +127,11 @@ export default async function handler(req, res) {
 
       for (const pattern of locationPatterns) {
         const match = jdText.match(pattern);
-        if (match) {
-          return match[1].trim();
+        if (match && match[1]) {
+          const location = match[1].trim();
+          if (location && location.length > 0) {
+            return location;
+          }
         }
       }
 
