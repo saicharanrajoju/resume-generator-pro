@@ -114,25 +114,35 @@ export default async function handler(req, res) {
 
     // Extract location from job description
     function extractLocation(jdText) {
-      if (!jdText || typeof jdText !== 'string') {
-        return null;  // Return null if no JD
+      // Return null immediately if input is invalid
+      if (!jdText || typeof jdText !== 'string' || jdText.trim().length === 0) {
+        return null;
       }
 
-      // Common location patterns
-      const locationPatterns = [
-        /location[:\s]+([^,\n]+(?:,\s*[A-Z]{2})?)/i,
-        /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*,\s*[A-Z]{2})\b/g, // City, ST
-        /\b(Remote|Hybrid|On-site)\b/i
-      ];
-
-      for (const pattern of locationPatterns) {
-        const match = jdText.match(pattern);
-        if (match && match[1]) {
-          const location = match[1].trim();
-          if (location && location.length > 0) {
-            return location;
+      try {
+        // Try to find "location:" or "Location:" followed by text
+        const locationMatch = jdText.match(/location\s*:?\s*([^\n]+)/i);
+        if (locationMatch && locationMatch[1]) {
+          const loc = locationMatch[1].trim();
+          if (loc.length > 0 && loc.length < 100) {
+            return loc;
           }
         }
+
+        // Try to find patterns like "Austin, TX" or "Remote"
+        const cityStateMatch = jdText.match(/\b([A-Z][a-z]+,\s*[A-Z]{2})\b/);
+        if (cityStateMatch && cityStateMatch[1]) {
+          return cityStateMatch[1].trim();
+        }
+
+        // Try to find Remote/Hybrid/On-site
+        const remoteMatch = jdText.match(/\b(Remote|Hybrid|On-site)\b/i);
+        if (remoteMatch && remoteMatch[1]) {
+          return remoteMatch[1].trim();
+        }
+
+      } catch (error) {
+        console.error('Error extracting location:', error);
       }
 
       return null;
