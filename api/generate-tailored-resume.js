@@ -17,7 +17,10 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { parsedData, jobDescription, userProvidedSummary, userProvidedSkills, userProvidedExperience } = req.body;
+    const { parsedData, jobDescription: jdInput, userProvidedSummary, userProvidedSkills, userProvidedExperience } = req.body;
+
+    // Make jobDescription optional (default to empty string)
+    const jobDescription = jdInput || '';
 
     if (!parsedData) {
       return res.status(400).json({ error: 'Missing parsed data' });
@@ -68,7 +71,9 @@ export default async function handler(req, res) {
 
     // Extract keywords from job description
     function extractKeywords(jdText) {
-      if (!jdText) return [];
+      if (!jdText || typeof jdText !== 'string') {
+        return [];  // Return empty array if no JD
+      }
 
       // Convert to lowercase and split into words
       const words = jdText.toLowerCase()
@@ -109,7 +114,9 @@ export default async function handler(req, res) {
 
     // Extract location from job description
     function extractLocation(jdText) {
-      if (!jdText) return null;
+      if (!jdText || typeof jdText !== 'string') {
+        return null;  // Return null if no JD
+      }
 
       // Common location patterns
       const locationPatterns = [
