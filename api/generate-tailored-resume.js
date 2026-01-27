@@ -17,10 +17,10 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { jobDescription, masterResumeText, parsedData } = req.body;
+    const { parsedData, userProvidedSummary, userProvidedSkills, userProvidedExperience } = req.body;
 
-    if (!jobDescription || !masterResumeText || !parsedData) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    if (!parsedData) {
+      return res.status(400).json({ error: 'Missing parsed data' });
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -60,11 +60,7 @@ export default async function handler(req, res) {
     // QUALITY GATE: Validate inputs before processing
     // ═══════════════════════════════════════════════════════════════
 
-    if (jobDescription.length < 100) {
-      return res.status(400).json({
-        error: 'Job description too short (minimum 100 characters)'
-      });
-    }
+
 
     // ═══════════════════════════════════════════════════════════════
     // HELPER FUNCTIONS
@@ -200,254 +196,46 @@ export default async function handler(req, res) {
     // INTELLIGENT TAILORING: Single holistic optimization by Claude
     // ═══════════════════════════════════════════════════════════════
 
-    console.log('🧠 Starting intelligent resume tailoring...');
+    // ═══════════════════════════════════════════════════════════════
+    // SIMPLE ASSEMBLY: Combine user-provided sections with stored data
+    // ═══════════════════════════════════════════════════════════════
 
-    const tailoringPrompt = `You are an expert resume consultant helping a candidate apply for a job.
+    console.log('📦 Assembling resume from provided sections...');
 
-    Your task: Create a tailored version of their resume that maximizes their chances while staying 100% truthful.
+    // Validate that user provided the required sections
+    if (!userProvidedSummary || !userProvidedSkills || !userProvidedExperience) {
+      return res.status(400).json({
+        error: 'Missing required sections',
+        message: 'Please provide summary, skills, and experience sections'
+      });
+    }
 
-    ═══════════════════════════════════════════════════════
-    CANDIDATE'S MASTER RESUME:
-    ═══════════════════════════════════════════════════════
+    // Assemble final resume
+    const finalResume = {
+      summary: userProvidedSummary,
+      skills: userProvidedSkills,
+      experience: userProvidedExperience,
 
-    ${JSON.stringify(normalizedData, null, 2)}
+      // These come from stored data (unchanged)
+      projects: normalizedData.projects || [],
+      education: normalizedData.education || [],
+      certifications: normalizedData.certifications || []
+    };
 
-    ═══════════════════════════════════════════════════════
-    JOB DESCRIPTION THEY'RE APPLYING FOR:
-    ═══════════════════════════════════════════════════════
-
-    ${jobDescription}
-
-    ═══════════════════════════════════════════════════════
-    YOUR MISSION:
-    ═══════════════════════════════════════════════════════
-
-    Analyze both documents and create a tailored resume that:
-
-    1. HIGHLIGHTS the candidate's MOST RELEVANT experience for THIS job
-    2. Uses language and keywords from the JD naturally
-    3. 
-    4. 
-    5. Preserves all their competitive advantages
-    6. Fits in 2 pages
-
-    **CRITICAL REQUIREMENTS:**
-
-    always make sure when the resume is done it should be beliveable by recruiter it shouldnt sound like made up
-
-    1. ATS TARGET: You MUST achieve 85-90% keyword match with the job description.
-       - Identify important keywords in the JD
-       - Ensure 85-90% of them appear naturally in the resume
-       - Add them cleverly so it is belivable 
-
-    critical: never touch the projects section leave lit like that 
-
-
-    2. LOCATION MATCHING: 
-       - If the JD mentions specific locations (city, state), update the resume header location to match
-       - If the JD says "Remote" or has no location, keep the current location unchanged
-       - Format as "City, State" (e.g., "Birmingham, AL")
-
-    ═══════════════════════════════════════════════════════
-    SPECIFIC INSTRUCTIONS:
-    ═══════════════════════════════════════════════════════
-
-    **SUMMARY (3-4 sentences):**
-    - Lead with the skills/experience MOST relevant to this JD
-    - Mirror the JD's language style
-    - Emphasize years of experience in relevant areas
-    - Mention specific technologies the JD asks for (if candidate has them)
-
-    Example transformation:
-    BEFORE: "AI/ML Engineer with 2 years experience in data pipelines..."
-    AFTER: "AI/ML Engineer with 2+ years evaluating and deploying Large Language Models in production, specializing in agentic AI systems and cloud ML platforms..."
-
-    **SKILLS:**
-    - Keep ALL existing skills (especially unique ones like MLC-LLM, CrewAI, Apache TVM, MCP)
-    - Add 5-10 keywords from the JD that candidate actually knows
-    - Maintain exactly 6 categories in this order:
-      1. LLM & GenAI
-      2. Programming & ML Frameworks
-      3. Cloud & Big Data
-      4. Production & MLOps
-      5. ML & NLP
-      6. Data & Visualization
-
-    **EXPERIENCE:**
-    - Keep ALL jobs and ALL bullets
-    - Preserve EVERY metric exactly ($11M, 79%, 120M+, 99.8%, etc.)
-    - Enhance bullets by adding relevant technical terms WHERE THEY FIT
-
-    
-  if there is any critical or important keywords in the missing keywords
-
-try to fit it in resume naturally in the professional experience or technical skills
-    **PROJECTS:**
-    - Include ALL projects
-    - Reorder by relevance (most relevant to JD first)
-    - Keep all technical details and metrics intact
-    - Don't change descriptions
-
-    **EDUCATION & CERTIFICATIONS:**
-    - Keep exactly as written
-    - Include relevant coursework if present
-    - Don't modify
-
-    ═══════════════════════════════════════════════════════
-    CRITICAL RULES - READ CAREFULLY:
-    ═══════════════════════════════════════════════════════
-
-    ❌ NEVER:
-     
-    - Change any numbers, percentages, or metrics
-    - Remove important achievements
-    - dont touch the projects section leave lit like that 
-
-    ✅ ALWAYS:
-    - Preserve all competitive advantages (metrics, modern tech, unique projects)
-    - Keep the candidate's authentic voice
-    - Only add keywords you can JUSTIFY from their existing experience
-    - Think: "Would a hiring manager believe this?"
-
-    ═══════════════════════════════════════════════════════
-    PAGE LENGTH CONSTRAINT:
-    ═══════════════════════════════════════════════════════
-
-    Resume must fit in 2 pages with this format:
-    - Font: Times New Roman 11pt
-    - Line spacing: 1.15
-    - Margins: 0.5" all sides
-    - Capacity: ~52 lines per page = ~104 lines total
-
-    Guidelines:
-    - Header + Summary + Skills = ~16 lines
-    - Available for content: ~88 lines
-    - 3 jobs × 4 bullets each = ~18 lines
-    - 3 projects = ~12 lines
-    - Education + Certs = ~7 lines
-    TOTAL: ~53 lines (well under limit)
-
-    If you need to trim:
-    - Reduce to 3-4 bullets per job (not less)
-    - Keep most relevant 3 projects
-    - Shorten bullet wording slightly
-
-    ═══════════════════════════════════════════════════════
-    OUTPUT FORMAT:
-    ═══════════════════════════════════════════════════════
-
-    Return ONLY valid JSON (no markdown, no code blocks, no explanations):
-
-    {
-      "summary": "3-4 sentence professional summary",
-      "skills": {
-        "LLM & GenAI": ["LangChain", "CrewAI", "RAG", "..."],
-        "Programming & ML Frameworks": ["Python", "PyTorch", "..."],
-        "Cloud & Big Data": ["AWS", "GCP", "..."],
-        "Production & MLOps": ["Docker", "MLflow", "..."],
-        "ML & NLP": ["Deep Learning", "BERT", "..."],
-        "Data & Visualization": ["Tableau", "ETL", "..."]
-      },
-      "experience": [
-        {
-          "company": "Company Name",
-          "position": "Job Title",
-          "period": "Month YYYY - Month YYYY",
-          "location": "City, State",
-          "achievements": [
-            "Bullet 1 with metrics",
-            "Bullet 2 with impact",
-            "Bullet 3 with technologies",
-            "Bullet 4 with results"
-          ]
-        }
-      ],
-      "projects": [
-        {
-          "name": "Project Name",
-          "description": "What the project does and accomplishes",
-          "technologies": ["Tech1", "Tech2", "Tech3"],
-          "date": "Month YYYY" (if available, else "")
-        }
-      ],
-      "certifications": [
-        {"name": "Certification Name", "date": "Year"}
-      ],
-      "education": [
-        {
-          "school": "University Name",
-          "degree": "Degree Type",
-          "field": "Field of Study",
-          "year": "Graduation Year",
-          "gpa": "X.X/X.X",
-          "relevantCoursework": "Course1, Course2, Course3" (if present)
-        }
-      ]
-    }`;
-
-    // Make the intelligent call
-    const tailoredResponse = await callClaude(tailoringPrompt, 4096);
-    const tailoredResume = parseJSON(tailoredResponse);
-
-    console.log('✅ Intelligent tailoring complete');
+    console.log('✅ Resume assembled successfully');
 
     // Calculate page estimate
-    const pageEstimate = estimateResumePages(tailoredResume);
-    console.log(`📏 Estimated ${pageEstimate.estimatedPages} pages (${pageEstimate.estimatedLines} lines)`);
+    const pageEstimate = estimateResumePages(finalResume);
+    console.log(`📏 Estimated ${pageEstimate.estimatedPages} pages`);
 
-    // Calculate ATS score with a simple keyword match
-    console.log('📊 Calculating ATS match score...');
-
-    const atsPrompt = `Calculate ATS keyword match between this resume and job description.
-
-    JOB DESCRIPTION:
-    ${jobDescription}
-
-    TAILORED RESUME:
-    Summary: ${tailoredResume.summary}
-    Skills: ${JSON.stringify(tailoredResume.skills)}
-    Experience: ${tailoredResume.experience.map(e => e.achievements.join(' ')).join(' ')}
-    Projects: ${tailoredResume.projects.map(p => p.name + ' ' + p.description).join(' ')}
-
-    Count how many important keywords from the JD appear in the resume.
-
-    Output ONLY valid JSON:
-    {
-      "atsScore": 92,
-      "matchedKeywords": ["Python", "AWS", "LLM", "..."],
-      "missingKeywords": ["Airflow", "Snowflake", "..."],
-      "summary": "Strong match. Resume emphasizes relevant LLM and cloud experience."
-    }
-    
-    Output ONLY valid JSON. No markdown, no explanations, no code blocks. Just the raw JSON object.`;
-
-    const atsResponse = await callClaude(atsPrompt, 2000);
-    const atsAnalysis = parseJSON(atsResponse);
-
-    console.log(`✅ ATS Score: ${atsAnalysis.atsScore}%`);
-
-    // Prepare final response
+    // Return result (no ATS score needed)
     const result = {
-      resume: tailoredResume,
-      atsScore: atsAnalysis.atsScore,
-      matchedKeywords: atsAnalysis.matchedKeywords || [],
-      missingKeywords: atsAnalysis.missingKeywords || [],
-
+      resume: finalResume,
       pageEstimate: {
         pages: pageEstimate.estimatedPages,
         lines: pageEstimate.estimatedLines,
         recommendation: pageEstimate.recommendation,
         isOverTwoPages: pageEstimate.isOverTwoPages
-      },
-
-      keywordAnalysis: {
-        totalJDKeywords: (atsAnalysis.matchedKeywords?.length || 0) + (atsAnalysis.missingKeywords?.length || 0),
-        matchedInResume: atsAnalysis.matchedKeywords?.length || 0
-      },
-
-      optimization: {
-        approach: "Holistic intelligent tailoring by Claude",
-        summary: atsAnalysis.summary || "Resume optimized for this position"
       }
     };
 

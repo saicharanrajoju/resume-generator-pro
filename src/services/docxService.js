@@ -19,6 +19,55 @@ import { saveAs } from 'file-saver';
  * - Tight bullet spacing
  */
 
+/**
+ * Parses text with **bold** markers and returns array of text runs
+ * Example: "Built models using **Python**" -> [{text: "Built models using ", bold: false}, {text: "Python", bold: true}]
+ */
+function parseFormattedText(text) {
+    if (!text) return [{ text: '', bold: false }];
+
+    const runs = [];
+    const boldRegex = /\*\*(.*?)\*\*/g;
+    let lastIndex = 0;
+    let match;
+
+    while ((match = boldRegex.exec(text)) !== null) {
+        // Add text before the bold part
+        if (match.index > lastIndex) {
+            runs.push({
+                text: text.substring(lastIndex, match.index),
+                bold: false
+            });
+        }
+
+        // Add the bold part (content inside **...**)
+        runs.push({
+            text: match[1],
+            bold: true
+        });
+
+        lastIndex = match.index + match[0].length;
+    }
+
+    // Add remaining text after last bold marker
+    if (lastIndex < text.length) {
+        runs.push({
+            text: text.substring(lastIndex),
+            bold: false
+        });
+    }
+
+    // If no bold markers found, return entire text as non-bold
+    if (runs.length === 0) {
+        runs.push({
+            text: text,
+            bold: false
+        });
+    }
+
+    return runs;
+}
+
 const docxService = {
     async generateResume(resumeData, parsedData) {
         const sections = [];
@@ -162,16 +211,19 @@ const docxService = {
                 })
             );
 
+            const summaryRuns = parseFormattedText(resumeData.summary);
+
             sections.push(
                 new Paragraph({
-                    children: [
+                    children: summaryRuns.map(run =>
                         new TextRun({
-                            text: resumeData.summary,
+                            text: run.text,
                             size: 22,
                             font: 'Times New Roman',
-                            color: '000000'
+                            color: '000000',
+                            bold: run.bold
                         })
-                    ],
+                    ),
                     spacing: { after: 120, line: 276 }
                 })
             );
@@ -319,16 +371,19 @@ const docxService = {
                     const isLastBullet = achIndex === achievements.length - 1;
                     const isLastJob = index === resumeData.experience.length - 1;
 
+                    const achievementRuns = parseFormattedText(achievement);
+
                     sections.push(
                         new Paragraph({
-                            children: [
+                            children: achievementRuns.map(run =>
                                 new TextRun({
-                                    text: achievement,
+                                    text: run.text,
                                     size: 22,
                                     font: 'Times New Roman',
-                                    color: '000000'
+                                    color: '000000',
+                                    bold: run.bold
                                 })
-                            ],
+                            ),
                             bullet: { level: 0 },
                             indent: {
                                 left: convertInchesToTwip(0.25),
@@ -409,16 +464,19 @@ const docxService = {
                 );
 
                 if (project.description) {
+                    const descriptionRuns = parseFormattedText(project.description);
+
                     sections.push(
                         new Paragraph({
-                            children: [
+                            children: descriptionRuns.map(run =>
                                 new TextRun({
-                                    text: project.description,
+                                    text: run.text,
                                     size: 22,
                                     font: 'Times New Roman',
-                                    color: '000000'
+                                    color: '000000',
+                                    bold: run.bold
                                 })
-                            ],
+                            ),
                             bullet: { level: 0 },
                             indent: {
                                 left: convertInchesToTwip(0.25),

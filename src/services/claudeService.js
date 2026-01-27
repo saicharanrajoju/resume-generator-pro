@@ -1,33 +1,28 @@
 export const claudeService = {
-    async generateTailoredResume(jobDescription, masterResume) {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 seconds timeout
-
+    async generateTailoredResume(masterResume, summary, skills, experience) {
         try {
             const response = await fetch('/api/generate-tailored-resume', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    jobDescription,
-                    masterResumeText: masterResume.rawText,
                     parsedData: masterResume.parsedData,
-                    userId: masterResume.userId
+                    userProvidedSummary: summary,
+                    userProvidedSkills: skills,
+                    userProvidedExperience: experience
                 }),
-                signal: controller.signal
             });
 
-            clearTimeout(timeoutId);
-
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.details || errorData.message || errorData.error || 'Failed to generate resume');
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to generate resume');
             }
 
-            return await response.json();
+            const data = await response.json();
+            return data;
         } catch (error) {
-            clearTimeout(timeoutId);
+            console.error('Error generating tailored resume:', error);
             throw error;
         }
     },
