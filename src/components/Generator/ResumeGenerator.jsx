@@ -8,6 +8,8 @@ import { estimateResumePages } from '../../utils/resumePageEstimator';
 
 function ResumeGenerator({ masterResume }) {
     const { user } = useAuth();
+    const [jobDescription, setJobDescription] = useState('');
+    const [jdAnalysis, setJdAnalysis] = useState(null);
 
     // Manual Input State
     const [manualSummary, setManualSummary] = useState('');
@@ -42,10 +44,30 @@ function ResumeGenerator({ masterResume }) {
         }
     };
 
+    // Helper: Score color
+    const getScoreColor = (score) => {
+        if (score >= 90) return 'text-green-600';
+        if (score >= 75) return 'text-yellow-600';
+        return 'text-red-600';
+    };
+
+    // Helper: Score background
+    const getScoreBgColor = (score) => {
+        if (score >= 90) return 'bg-green-600';
+        if (score >= 75) return 'bg-yellow-600';
+        return 'bg-red-600';
+    };
+
     const handleGenerate = async () => {
         // Clear previous errors
         setError(null);
         const errors = {};
+
+        // Validate job description
+        if (!jobDescription.trim()) {
+            setError('Please paste the job description in Step 1');
+            return;
+        }
 
         // Validate summary
         if (!manualSummary.trim()) {
@@ -96,6 +118,7 @@ function ResumeGenerator({ masterResume }) {
             // Call service to combine and generate
             const result = await claudeService.generateTailoredResume(
                 masterResume,
+                jobDescription,
                 manualSummary,
                 skillsObj,
                 experienceArray
@@ -140,24 +163,39 @@ function ResumeGenerator({ masterResume }) {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Left Column - Manual Input */}
                 <div>
-                    {/* Instructions */}
+                    {/* Step 1: Job Description */}
+                    <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                        <h2 className="text-xl font-semibold mb-4">Step 1: Paste Job Description</h2>
+                        <textarea
+                            value={jobDescription}
+                            onChange={(e) => setJobDescription(e.target.value)}
+                            placeholder="Paste the complete job description here (for ATS analysis)..."
+                            className="w-full h-64 border rounded-lg p-4 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                        />
+                        <p className="text-sm text-gray-600 mt-2">
+                            💡 The app will use this to calculate ATS score and extract keywords. You'll also paste this in your Claude chat.
+                        </p>
+                    </div>
+
+                    {/* Step 2: Instructions */}
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                        <h3 className="font-semibold text-blue-900 mb-2">📋 How to Use</h3>
+                        <h3 className="font-semibold text-blue-900 mb-2">📋 Step 2: Generate Sections in Claude</h3>
                         <ol className="text-sm text-blue-800 space-y-2 list-decimal list-inside">
+                            <li>Copy the job description from above</li>
                             <li>Open your <strong>pinned Claude chat</strong> in another tab</li>
-                            <li>Paste the job description in Claude</li>
-                            <li>Ask Claude: "Generate summary, skills, and experience"</li>
-                            <li>Copy each section from Claude and paste below</li>
-                            <li>Click "Combine & Download Resume"</li>
+                            <li>Paste the JD in Claude and ask: "Generate summary, skills, and experience"</li>
+                            <li>Copy each section from Claude</li>
+                            <li>Paste them in Step 3 below</li>
+                            <li>Click "Generate Resume"</li>
                         </ol>
                         <p className="text-xs text-blue-600 mt-3">
                             💡 Tip: Use **double asterisks** in Claude for bold formatting (e.g., **Python**)
                         </p>
                     </div>
 
-                    {/* Manual Input Form */}
+                    {/* Step 3: Manual Input Form */}
                     <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-                        <h2 className="text-xl font-semibold mb-4">Paste Sections from Claude</h2>
+                        <h2 className="text-xl font-semibold mb-4">Step 3: Paste Sections from Claude</h2>
 
                         {/* Summary Input */}
                         <div className="mb-6">
@@ -260,7 +298,7 @@ function ResumeGenerator({ masterResume }) {
                                 <span>{generatingMessage}</span>
                             </span>
                         ) : (
-                            '🚀 Combine & Download Resume'
+                            'Generate Resume with ATS Analysis'
                         )}
                     </button>
                     {!generatedResume && !generating && (
@@ -274,6 +312,68 @@ function ResumeGenerator({ masterResume }) {
                 <div>
                     {generatedResume ? (
                         <div className="bg-white rounded-lg shadow-lg p-6">
+                            {/* ATS Score */}
+                            <div className="mb-6">
+                                <div className="flex items-center justify-between mb-2">
+                                    <h3 className="text-lg font-semibold">ATS Match Score</h3>
+                                    <span className={`text-4xl font-bold ${getScoreColor(generatedResume.atsScore)}`}>
+                                        {generatedResume.atsScore}%
+                                    </span>
+                                </div>
+
+                                {/* Progress bar */}
+                                <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
+                                    <div
+                                        className={`h-3 rounded-full transition-all ${getScoreBgColor(generatedResume.atsScore)}`}
+                                        style={{ width: `${generatedResume.atsScore}%` }}
+                                    />
+                                </div>
+
+                                <p className="text-sm text-gray-600">
+                                    {generatedResume.atsScore >= 90 && '🎯 Excellent! Highly optimized.'}
+                                    {generatedResume.atsScore >= 85 && generatedResume.atsScore < 90 && '✨ Great! Strong ATS compatibility.'}
+                                    {generatedResume.atsScore >= 75 && generatedResume.atsScore < 85 && '👍 Good match.'}
+                                    {generatedResume.atsScore < 75 && '⚠️ Consider adding more keywords.'}
+                                </p>
+                            </div>
+
+                            {/* Matched Keywords */}
+                            {generatedResume.matchedKeywords && generatedResume.matchedKeywords.length > 0 && (
+                                <div className="mb-6">
+                                    <h4 className="font-semibold text-green-700 mb-2">
+                                        ✓ Matched Keywords ({generatedResume.matchedKeywords.length})
+                                    </h4>
+                                    <div className="flex flex-wrap gap-2">
+                                        {generatedResume.matchedKeywords.slice(0, 15).map((keyword, i) => (
+                                            <span key={i} className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs">
+                                                {keyword}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Missing Keywords */}
+                            {generatedResume.missingKeywords && generatedResume.missingKeywords.length > 0 && (
+                                <div className="mb-6">
+                                    <h4 className="font-semibold text-orange-700 mb-2">
+                                        ⚠ Missing Keywords ({generatedResume.missingKeywords.length})
+                                    </h4>
+                                    <div className="flex flex-wrap gap-2 mb-3">
+                                        {generatedResume.missingKeywords.slice(0, 10).map((keyword, i) => (
+                                            <span key={i} className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-xs">
+                                                {keyword}
+                                            </span>
+                                        ))}
+                                    </div>
+                                    <div className="p-3 bg-orange-50 border border-orange-200 rounded text-sm">
+                                        <p className="text-orange-800 font-medium mb-1">💡 Suggestion:</p>
+                                        <p className="text-orange-700 text-xs">
+                                            Go back to your Claude chat and ask: "Add these keywords naturally: {generatedResume.missingKeywords.slice(0, 5).join(', ')}"
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Page Estimation Card */}
                             {pageAnalysis && (

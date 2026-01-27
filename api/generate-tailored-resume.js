@@ -17,7 +17,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { parsedData, userProvidedSummary, userProvidedSkills, userProvidedExperience } = req.body;
+    const { parsedData, jobDescription, userProvidedSummary, userProvidedSkills, userProvidedExperience } = req.body;
 
     if (!parsedData) {
       return res.status(400).json({ error: 'Missing parsed data' });
@@ -66,65 +66,103 @@ export default async function handler(req, res) {
     // HELPER FUNCTIONS
     // ═══════════════════════════════════════════════════════════════
 
-    // Claude API caller
-    async function callClaude(prompt, maxTokens = 2500) {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': process.env.CLAUDE_API_KEY,
-          'anthropic-version': '2023-06-01'
-        },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-5-20250929',
-          max_tokens: maxTokens,
-          messages: [{ role: 'user', content: prompt }]
-        })
+    // Extract keywords from job description
+    function extractKeywords(jdText) {
+      if (!jdText) return [];
+
+      // Convert to lowercase and split into words
+      const words = jdText.toLowerCase()
+        .replace(/[^\w\s]/g, ' ')
+        .split(/\s+/)
+        .filter(word => word.length > 2);
+
+      // Common words to exclude
+      const stopWords = new Set([
+        'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with',
+        'a', 'an', 'as', 'by', 'is', 'was', 'are', 'were', 'be', 'been', 'being',
+        'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'should',
+        'could', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those',
+        'you', 'we', 'our', 'your', 'from', 'about', 'into', 'through', 'during',
+        'before', 'after', 'above', 'below', 'up', 'down', 'out', 'off', 'over',
+        'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when',
+        'where', 'why', 'how', 'all', 'each', 'other', 'some', 'such', 'only',
+        'own', 'same', 'so', 'than', 'too', 'very', 'just', 'now', 'also', 'well',
+        'more', 'most', 'years', 'year', 'experience', 'work', 'working', 'ability'
+      ]);
+
+      // Count word frequency
+      const wordCount = {};
+      words.forEach(word => {
+        if (!stopWords.has(word)) {
+          wordCount[word] = (wordCount[word] || 0) + 1;
+        }
       });
 
-      if (!response.ok) {
-        throw new Error(`Claude API error: ${await response.text()}`);
-      }
+      // Get top keywords (appear 2+ times)
+      const keywords = Object.entries(wordCount)
+        .filter(([word, count]) => count >= 2)
+        .sort((a, b) => b[1] - a[1])
+        .map(([word]) => word);
 
-      const data = await response.json();
-      return data.content[0].text;
+      return keywords;
     }
 
-    // JSON parser
-    function parseJSON(text) {
-      try {
-        // First, try to parse directly (in case it's already pure JSON)
-        return JSON.parse(text);
-      } catch (e) {
-        // If that fails, extract JSON from mixed content
+    // Extract location from job description
+    function extractLocation(jdText) {
+      if (!jdText) return null;
 
-        // Try extracting between ```json and ``` if present
-        const jsonBlockMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
-        if (jsonBlockMatch) {
-          return JSON.parse(jsonBlockMatch[1]);
+      // Common location patterns
+      const locationPatterns = [
+        /location[:\s]+([^,\n]+(?:,\s*[A-Z]{2})?)/i,
+        /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*,\s*[A-Z]{2})\b/g, // City, ST
+        /\b(Remote|Hybrid|On-site)\b/i
+      ];
+
+      for (const pattern of locationPatterns) {
+        const match = jdText.match(pattern);
+        if (match) {
+          return match[1].trim();
         }
-
-        // Try extracting between ``` and ``` 
-        const codeBlockMatch = text.match(/```\s*([\s\S]*?)\s*```/);
-        if (codeBlockMatch) {
-          return JSON.parse(codeBlockMatch[1]);
-        }
-
-        // Fall back to brace extraction
-        const firstBrace = text.indexOf('{');
-        const lastBrace = text.lastIndexOf('}');
-
-        if (firstBrace === -1 || lastBrace === -1) {
-          console.error('Failed to parse JSON. Raw text:', text.substring(0, 500));
-          throw new Error('No JSON found in Claude response');
-        }
-
-        const jsonStr = text.substring(firstBrace, lastBrace + 1);
-        return JSON.parse(jsonStr);
       }
+
+      return null;
     }
 
+    // Calculate ATS score
+    function calculateATSScore(resume, jdKeywords) {
+      // Combine all resume text
+      const resumeText = [
+        resume.summary,
+        JSON.stringify(resume.skills),
+        JSON.stringify(resume.experience)
+      ].join(' ').toLowerCase();
 
+      // Count matching keywords
+      let matchCount = 0;
+      const matched = [];
+      const missing = [];
+
+      jdKeywords.forEach(keyword => {
+        if (resumeText.includes(keyword)) {
+          matchCount++;
+          matched.push(keyword);
+        } else {
+          missing.push(keyword);
+        }
+      });
+
+      const score = jdKeywords.length > 0
+        ? Math.round((matchCount / jdKeywords.length) * 100)
+        : 0;
+
+      return {
+        score,
+        totalKeywords: jdKeywords.length,
+        matchedCount: matchCount,
+        matched: matched.slice(0, 20), // Top 20
+        missing: missing.slice(0, 15)  // Top 15
+      };
+    }
 
     // Page estimation function (inline to avoid ES module issues)
     function estimateResumePages(resumeData) {
@@ -193,50 +231,119 @@ export default async function handler(req, res) {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // INTELLIGENT TAILORING: Single holistic optimization by Claude
+    // INTELLIGENT DATA PROCESSING
     // ═══════════════════════════════════════════════════════════════
 
-    // ═══════════════════════════════════════════════════════════════
-    // SIMPLE ASSEMBLY: Combine user-provided sections with stored data
-    // ═══════════════════════════════════════════════════════════════
+    console.log('🧠 Processing data intelligently...');
 
-    console.log('📦 Assembling resume from provided sections...');
+    // Extract JD insights
+    const jdKeywords = jobDescription ? extractKeywords(jobDescription) : [];
+    const jdLocation = jobDescription ? extractLocation(jobDescription) : null;
 
-    // Validate that user provided the required sections
-    if (!userProvidedSummary || !userProvidedSkills || !userProvidedExperience) {
-      return res.status(400).json({
-        error: 'Missing required sections',
-        message: 'Please provide summary, skills, and experience sections'
-      });
-    }
+    console.log(`📊 Extracted ${jdKeywords.length} keywords from JD`);
+    if (jdLocation) console.log(`� JD location: ${jdLocation}`);
+
+    // Process personal info
+    const personalInfo = {
+      name: parsedData.personalInfo?.name || parsedData.name || 'Rajoju Sai Charan',
+      location: jdLocation || parsedData.personalInfo?.location || parsedData.location || 'Denton, TX',
+      phone: parsedData.personalInfo?.phone || parsedData.phone || '+1 940-300-2732',
+      email: parsedData.personalInfo?.email || parsedData.email || 'rajojusaicharan1@gmail.com',
+      linkedin: parsedData.personalInfo?.linkedin || parsedData.linkedin || 'linkedin.com/in/rajojusaicharan',
+      github: parsedData.personalInfo?.github || parsedData.github || parsedData.onlinePresence?.github ||
+        parsedData.onlinePresence?.GitHub || null,
+      website: parsedData.personalInfo?.website || parsedData.website || parsedData.onlinePresence?.website || null
+    };
+
+    // Process education with multiple fallbacks
+    const processedEducation = (parsedData.education || []).map(edu => {
+      const school = edu.school || edu.institution || edu.university ||
+        edu.institutionName || edu.schoolName || '';
+      const degree = edu.degree || edu.degreeType || edu.degreeLevel || '';
+      const field = edu.field || edu.major || edu.fieldOfStudy || edu.program || '';
+      const year = edu.year || edu.graduationYear || edu.gradYear || edu.endDate || '';
+      const gpa = edu.gpa || edu.GPA || '';
+      const coursework = edu.relevantCoursework || edu.coursework ||
+        edu['Relevant Coursework'] || edu.courses || '';
+
+      return {
+        school,
+        degree,
+        field,
+        year,
+        gpa,
+        relevantCoursework: coursework
+      };
+    });
+
+    // Process certifications
+    const processedCertifications = (parsedData.certifications || []).map(cert => {
+      if (typeof cert === 'string') {
+        // Parse string format: "AWS Certified ML (2025)"
+        const match = cert.match(/^(.+?)\s*(?:\((\d{4})\))?$/);
+        return {
+          name: match ? match[1].trim() : cert,
+          date: match && match[2] ? match[2] : ''
+        };
+      }
+      return {
+        name: cert.name || cert.certification || cert.title || cert.certificationName || '',
+        date: cert.date || cert.year || cert.issueDate || cert.yearObtained || ''
+      };
+    });
+
+    // Process projects (keep as-is but ensure structure)
+    const processedProjects = (parsedData.projects || []).map(proj => ({
+      name: proj.name || proj.title || proj.projectName || '',
+      description: proj.description || proj.desc || '',
+      technologies: proj.technologies || proj.techStack || proj.tools || [],
+      date: proj.date || proj.year || proj.period || ''
+    }));
 
     // Assemble final resume
     const finalResume = {
+      personalInfo,
       summary: userProvidedSummary,
       skills: userProvidedSkills,
       experience: userProvidedExperience,
-
-      // These come from stored data (unchanged)
-      projects: normalizedData.projects || [],
-      education: normalizedData.education || [],
-      certifications: normalizedData.certifications || []
+      projects: processedProjects,
+      education: processedEducation,
+      certifications: processedCertifications
     };
 
-    console.log('✅ Resume assembled successfully');
+    console.log('✅ Data processed:', {
+      hasGithub: !!personalInfo.github,
+      hasWebsite: !!personalInfo.website,
+      locationUpdated: jdLocation ? true : false,
+      educationCount: processedEducation.length,
+      projectsCount: processedProjects.length
+    });
+
+    // Calculate ATS score
+    const atsAnalysis = calculateATSScore(finalResume, jdKeywords);
+    console.log(`📊 ATS Score: ${atsAnalysis.score}%`);
 
     // Calculate page estimate
     const pageEstimate = estimateResumePages(finalResume);
     console.log(`📏 Estimated ${pageEstimate.estimatedPages} pages`);
 
-    // Return result (no ATS score needed)
+    // Return comprehensive result
     const result = {
       resume: finalResume,
+      atsScore: atsAnalysis.score,
+      matchedKeywords: atsAnalysis.matched,
+      missingKeywords: atsAnalysis.missing,
+      keywordAnalysis: {
+        totalJDKeywords: atsAnalysis.totalKeywords,
+        matchedInResume: atsAnalysis.matchedCount
+      },
       pageEstimate: {
         pages: pageEstimate.estimatedPages,
         lines: pageEstimate.estimatedLines,
         recommendation: pageEstimate.recommendation,
         isOverTwoPages: pageEstimate.isOverTwoPages
-      }
+      },
+      locationMatched: !!jdLocation
     };
 
     return res.status(200).json(result);

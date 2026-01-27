@@ -71,12 +71,12 @@ function parseFormattedText(text) {
 const docxService = {
     async generateResume(resumeData, parsedData) {
         const sections = [];
-        const personalInfo = parsedData.personalInfo || {};
+        const personalInfo = resumeData.personalInfo || {};
 
         // ============================================
         // 1. NAME (CENTERED, BOLD, 26pt)
         // ============================================
-        const fullName = `${personalInfo.firstName || ''} ${personalInfo.lastName || ''}`.trim();
+        const fullName = personalInfo.name || 'Resume';
 
         sections.push(
             new Paragraph({
@@ -97,87 +97,83 @@ const docxService = {
         // ============================================
         // 2. CONTACT LINE (with REAL clickable hyperlinks)
         // ============================================
+        const contactChildren = [];
+
+        const addSep = () => {
+            if (contactChildren.length > 0) {
+                contactChildren.push(new TextRun({
+                    text: ' | ',
+                    size: 22,
+                    font: 'Times New Roman',
+                    color: '000000'
+                }));
+            }
+        };
+
+        // Location
+        if (personalInfo.location) {
+            contactChildren.push(new TextRun({
+                text: personalInfo.location,
+                size: 22,
+                font: 'Times New Roman',
+                color: '000000'
+            }));
+        }
+
+        // Phone
+        if (personalInfo.phone) {
+            addSep();
+            contactChildren.push(new TextRun({
+                text: personalInfo.phone,
+                size: 22,
+                font: 'Times New Roman',
+                color: '000000'
+            }));
+        }
+
+        // Email
+        if (personalInfo.email) {
+            addSep();
+            contactChildren.push(new ExternalHyperlink({
+                children: [
+                    new TextRun({
+                        text: personalInfo.email,
+                        size: 22,
+                        font: 'Times New Roman',
+                        style: 'Hyperlink'
+                    })
+                ],
+                link: `mailto:${personalInfo.email}`
+            }));
+        }
+
+        // Helper for social links
+        const addLink = (url, display) => {
+            if (!url) return;
+            addSep();
+            const cleanDisplay = display || url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
+            const cleanLink = url.startsWith('http') ? url : `https://${url}`;
+
+            contactChildren.push(new ExternalHyperlink({
+                children: [
+                    new TextRun({
+                        text: cleanDisplay,
+                        size: 22,
+                        font: 'Times New Roman',
+                        style: 'Hyperlink'
+                    })
+                ],
+                link: cleanLink
+            }));
+        };
+
+        addLink(personalInfo.linkedin);
+        addLink(personalInfo.github);
+        addLink(personalInfo.website);
+
         sections.push(
             new Paragraph({
-                children: [
-                    // City, State, Zip
-                    ...(personalInfo.address?.city || personalInfo.address?.state ? [
-                        new TextRun({
-                            text: [
-                                personalInfo.address?.city,
-                                personalInfo.address?.state,
-                                personalInfo.address?.zipCode
-                            ].filter(Boolean).join(', '),
-                            size: 22,
-                            font: 'Times New Roman',
-                            color: '000000'
-                        }),
-                        new TextRun({
-                            text: ' | ',
-                            size: 22,
-                            font: 'Times New Roman',
-                            color: '000000'
-                        })
-                    ] : []),
-
-                    // Phone
-                    ...(personalInfo.phone ? [
-                        new TextRun({
-                            text: personalInfo.phone,
-                            size: 22,
-                            font: 'Times New Roman',
-                            color: '000000'
-                        }),
-                        new TextRun({
-                            text: ' | ',
-                            size: 22,
-                            font: 'Times New Roman',
-                            color: '000000'
-                        })
-                    ] : []),
-
-                    // Email as REAL hyperlink
-                    ...(personalInfo.email ? [
-                        new ExternalHyperlink({
-                            children: [
-                                new TextRun({
-                                    text: personalInfo.email,
-                                    size: 22,
-                                    font: 'Times New Roman',
-                                    style: 'Hyperlink'
-                                })
-                            ],
-                            link: `mailto:${personalInfo.email}`
-                        }),
-                        new TextRun({
-                            text: ' | ',
-                            size: 22,
-                            font: 'Times New Roman',
-                            color: '000000'
-                        })
-                    ] : []),
-
-                    // LinkedIn as REAL hyperlink
-                    ...(parsedData.onlinePresence?.linkedin ? [
-                        new TextRun({
-                            text: 'LinkedIn: ',
-                            size: 22,
-                            font: 'Times New Roman',
-                            color: '000000'
-                        }),
-                        new ExternalHyperlink({
-                            children: [
-                                new TextRun({
-                                    text: parsedData.onlinePresence.linkedin.replace('https://', '').replace('http://', ''),
-                                    size: 22,
-                                    font: 'Times New Roman',
-                                    style: 'Hyperlink'
-                                })
-                            ],
-                            link: parsedData.onlinePresence.linkedin
-                        })
-                    ] : [])
-                ],
+                children: contactChildren,
                 alignment: AlignmentType.CENTER,
                 spacing: { after: 240 }
             })
