@@ -345,11 +345,12 @@ const docxService = {
                     );
                 }
 
-                if (exp.period) {
+                const dateStr = exp.dates || exp.period;
+                if (dateStr) {
                     titleChildren.push(new TextRun({ text: '\t' }));
                     titleChildren.push(
                         new TextRun({
-                            text: exp.period,
+                            text: dateStr,
                             size: 22,
                             font: 'Times New Roman',
                             color: '000000'
