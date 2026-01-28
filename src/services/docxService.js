@@ -68,6 +68,20 @@ function parseFormattedText(text) {
     return runs;
 }
 
+/**
+ * Format date from YYYY-MM to Month YYYY
+ */
+function formatDate(dateStr) {
+    if (!dateStr) return '';
+    // Check if format is YYYY-MM
+    if (/^\d{4}-\d{2}$/.test(dateStr)) {
+        const [year, month] = dateStr.split('-');
+        const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        return `${months[parseInt(month) - 1]} ${year}`;
+    }
+    return dateStr;
+}
+
 const docxService = {
     async generateResume(resumeData, parsedData) {
         const sections = [];
@@ -307,16 +321,12 @@ const docxService = {
 
             resumeData.experience.forEach((exp, index) => {
                 // Job title with date - RIGHT-aligned
+                // Job title with date - RIGHT-aligned
+                // FIX: Use company field as main title per user request
                 const titleChildren = [
                     new TextRun({
-                        text: exp.position,
+                        text: exp.company,
                         bold: true,
-                        size: 22,
-                        font: 'Times New Roman',
-                        color: '000000'
-                    }),
-                    new TextRun({
-                        text: `, ${exp.company}`,
                         size: 22,
                         font: 'Times New Roman',
                         color: '000000'
@@ -434,17 +444,7 @@ const docxService = {
                     })
                 ];
 
-                if (project.date) {
-                    projChildren.push(new TextRun({ text: '\t' }));
-                    projChildren.push(
-                        new TextRun({
-                            text: project.date,
-                            size: 22,
-                            font: 'Times New Roman',
-                            color: '000000'
-                        })
-                    );
-                }
+
 
                 sections.push(
                     new Paragraph({
@@ -669,7 +669,7 @@ const docxService = {
                     schoolChildren.push(new TextRun({ text: '\t' }));
                     schoolChildren.push(
                         new TextRun({
-                            text: edu.year,
+                            text: formatDate(edu.year),
                             bold: true,
                             size: 22,
                             font: 'Times New Roman',
@@ -766,7 +766,8 @@ const docxService = {
         });
 
         const blob = await Packer.toBlob(doc);
-        const fileName = `${personalInfo.firstName}_${personalInfo.lastName}_Resume.docx`;
+        const cleanName = (personalInfo.name || 'Resume').replace(/\s+/g, '');
+        const fileName = `${cleanName}_Resume.docx`;
         saveAs(blob, fileName);
     }
 };
