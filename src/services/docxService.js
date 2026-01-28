@@ -459,7 +459,36 @@ const docxService = {
                     })
                 );
 
-                if (project.description) {
+                // Project Bullets
+                if (project.bullets && project.bullets.length > 0) {
+                    project.bullets.forEach((bullet, bIndex) => {
+                        const bulletRuns = parseFormattedText(bullet);
+                        const isLastBullet = bIndex === project.bullets.length - 1;
+
+                        sections.push(
+                            new Paragraph({
+                                children: bulletRuns.map(run =>
+                                    new TextRun({
+                                        text: run.text,
+                                        size: 22,
+                                        font: 'Times New Roman',
+                                        color: '000000',
+                                        bold: run.bold
+                                    })
+                                ),
+                                bullet: { level: 0 },
+                                indent: {
+                                    left: convertInchesToTwip(0.25),
+                                    hanging: convertInchesToTwip(0.25)
+                                },
+                                spacing: {
+                                    after: isLastBullet ? 120 : 60,
+                                    line: 260
+                                }
+                            })
+                        );
+                    });
+                } else if (project.description) {
                     const descriptionRuns = parseFormattedText(project.description);
 
                     sections.push(

@@ -266,7 +266,7 @@ export default async function handler(req, res) {
     // Process personal info
     const personalInfo = {
       name: parsedData.personalInfo?.name || parsedData.name || 'Rajoju Sai Charan',
-      location: jdLocation || parsedData.personalInfo?.location || parsedData.location || 'Denton, TX',
+      location: 'Denton, Texas', // FIXED: Always use Denton, Texas
       phone: parsedData.personalInfo?.phone || parsedData.phone || '+1 940-300-2732',
       email: parsedData.personalInfo?.email || parsedData.email || 'rajojusaicharan1@gmail.com',
       linkedin: parsedData.personalInfo?.linkedin || parsedData.linkedin || 'linkedin.com/in/rajojusaicharan',
@@ -283,8 +283,14 @@ export default async function handler(req, res) {
       const field = edu.field || edu.major || edu.fieldOfStudy || edu.program || '';
       const year = edu.year || edu.graduationYear || edu.gradYear || edu.endDate || '';
       const gpa = edu.gpa || edu.GPA || '';
-      const coursework = edu.relevantCoursework || edu.coursework ||
+
+      // FIXED: Add relevant coursework for UNT
+      let coursework = edu.relevantCoursework || edu.coursework ||
         edu['Relevant Coursework'] || edu.courses || '';
+
+      if (!coursework && (school.toLowerCase().includes('north texas') || school.toLowerCase().includes('unt'))) {
+        coursework = 'Machine Learning, Deep Learning, Big Data Analytics, Statistical Learning, Data Mining, Natural Language Processing, Cloud Computing';
+      }
 
       return {
         school,
@@ -312,13 +318,39 @@ export default async function handler(req, res) {
       };
     });
 
-    // Process projects (keep as-is but ensure structure)
-    const processedProjects = (parsedData.projects || []).map(proj => ({
-      name: proj.name || proj.title || proj.projectName || '',
-      description: proj.description || proj.desc || '',
-      technologies: proj.technologies || proj.techStack || proj.tools || [],
-      date: proj.date || proj.year || proj.period || ''
-    }));
+    // FIXED: Use specific formatted projects
+    const processedProjects = [
+      {
+        name: "Mobile-First GreenAI: On-Device LLM Deployment",
+        date: "Fall 2024",
+        bullets: [
+          "Deployed Meta's Llama-3.2-3B model on Android using MLC-LLM and Apache TVM for ARM64 compilation, enabling privacy-preserving on-device inference.",
+          "Applied 4-bit quantization (q4f16_1) achieving 3.2x compression (6.4GB to 2.0GB) while maintaining 89.7% accuracy on SST-2 and 75.2% F1 on SQuAD.",
+          "Benchmarked quantized mobile deployment achieving 3.8x energy efficiency (2.34 vs 8.95 mWh per query)."
+        ],
+        technologies: ["Python", "PyTorch", "MLC-LLM", "Apache TVM", "Android SDK", "Llama 3.2"]
+      },
+      {
+        name: "AI-Enhanced Supabase MCP Server: Natural Language Database Interface",
+        date: "Spring 2024",
+        bullets: [
+          "Built a Model Context Protocol (MCP) server with FastMCP SDK, bridging Claude 3.5 Sonnet to PostgreSQL via a ReAct agent for natural language querying.",
+          "Implemented FAISS-based semantic search with Sentence Transformers (all-MiniLM-L6-v2) generating 384-dim embeddings, achieving sub-100ms schema discovery.",
+          "Designed RAG-based context optimization dynamically injecting relevant schemas only, avoiding full dumps for efficient querying of large databases."
+        ],
+        technologies: ["Python", "LangChain", "Claude API", "FAISS", "PostgreSQL", "Docker", "FastMCP"]
+      },
+      {
+        name: "AetherFlow: Multi-Agent Data Orchestration System",
+        date: "Spring 2024",
+        bullets: [
+          "Architected a multi-agent system with CrewAI and LangChain, orchestrating AI agents (Validator, Transformer, Orchestrator) to execute autonomous ETL pipelines.",
+          "Integrated Weaviate vector database with BM25 hybrid search to index pipeline metadata, enabling RAG-based historical analysis for agent decisions.",
+          "Built event-driven architecture with Redis job queuing and FastAPI endpoints, decoupling ingestion from processing for high-throughput non-blocking operations."
+        ],
+        technologies: ["Python", "CrewAI", "LangChain", "Claude API", "GPT-4", "Weaviate", "Redis", "FastAPI"]
+      }
+    ];
 
     // Assemble final resume
     const finalResume = {
