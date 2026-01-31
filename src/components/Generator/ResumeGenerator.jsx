@@ -63,12 +63,6 @@ function ResumeGenerator({ masterResume }) {
         setError(null);
         const errors = {};
 
-        // Validate job description
-        if (!jobDescription.trim()) {
-            setError('Please paste the job description in Step 1');
-            return;
-        }
-
         // Validate summary
         if (!manualSummary.trim()) {
             errors.summary = 'Summary is required';
@@ -163,44 +157,14 @@ function ResumeGenerator({ masterResume }) {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Left Column - Manual Input */}
                 <div>
-                    {/* Step 1: Job Description */}
+                    {/* Input Form */}
                     <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-                        <h2 className="text-xl font-semibold mb-4">Step 1: Paste Job Description</h2>
-                        <textarea
-                            value={jobDescription}
-                            onChange={(e) => setJobDescription(e.target.value)}
-                            placeholder="Paste the complete job description here (for ATS analysis)..."
-                            className="w-full h-64 border rounded-lg p-4 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                        />
-                        <p className="text-sm text-gray-600 mt-2">
-                            💡 The app will use this to calculate ATS score and extract keywords. You'll also paste this in your Claude chat.
-                        </p>
-                    </div>
-
-                    {/* Step 2: Instructions */}
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                        <h3 className="font-semibold text-blue-900 mb-2">📋 Step 2: Generate Sections in Claude</h3>
-                        <ol className="text-sm text-blue-800 space-y-2 list-decimal list-inside">
-                            <li>Copy the job description from above</li>
-                            <li>Open your <strong>pinned Claude chat</strong> in another tab</li>
-                            <li>Paste the JD in Claude and ask: "Generate summary, skills, and experience"</li>
-                            <li>Copy each section from Claude</li>
-                            <li>Paste them in Step 3 below</li>
-                            <li>Click "Generate Resume"</li>
-                        </ol>
-                        <p className="text-xs text-blue-600 mt-3">
-                            💡 Tip: Use **double asterisks** in Claude for bold formatting (e.g., **Python**)
-                        </p>
-                    </div>
-
-                    {/* Step 3: Manual Input Form */}
-                    <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-                        <h2 className="text-xl font-semibold mb-4">Step 3: Paste Sections from Claude</h2>
+                        <h2 className="text-xl font-semibold mb-4">Resume Details</h2>
 
                         {/* Summary Input */}
                         <div className="mb-6">
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                                1. Summary (3-4 sentences)
+                                Professional Summary
                             </label>
                             <textarea
                                 value={manualSummary}
@@ -223,7 +187,7 @@ function ResumeGenerator({ masterResume }) {
                         {/* Skills Input */}
                         <div className="mb-6">
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                                2. Skills (JSON format)
+                                Skills (JSON format)
                             </label>
                             <textarea
                                 value={manualSkills}
@@ -252,7 +216,7 @@ function ResumeGenerator({ masterResume }) {
                         {/* Experience Input */}
                         <div className="mb-6">
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                                3. Experience (JSON array with **bold** markers)
+                                Experience (JSON array with **bold** markers)
                             </label>
                             <textarea
                                 value={manualExperience}
@@ -298,7 +262,7 @@ function ResumeGenerator({ masterResume }) {
                                 <span>{generatingMessage}</span>
                             </span>
                         ) : (
-                            'Generate Resume with ATS Analysis'
+                            'Generate Resume'
                         )}
                     </button>
                     {!generatedResume && !generating && (
@@ -314,27 +278,35 @@ function ResumeGenerator({ masterResume }) {
                         <div className="bg-white rounded-lg shadow-lg p-6">
                             {/* ATS Score */}
                             <div className="mb-6">
-                                <div className="flex items-center justify-between mb-2">
-                                    <h3 className="text-lg font-semibold">ATS Match Score</h3>
-                                    <span className={`text-4xl font-bold ${getScoreColor(generatedResume.atsScore)}`}>
-                                        {generatedResume.atsScore}%
-                                    </span>
-                                </div>
+                                {generatedResume.keywordAnalysis?.totalJDKeywords > 0 ? (
+                                    <>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <h3 className="text-lg font-semibold">ATS Match Score</h3>
+                                            <span className={`text-4xl font-bold ${getScoreColor(generatedResume.atsScore)}`}>
+                                                {generatedResume.atsScore}%
+                                            </span>
+                                        </div>
 
-                                {/* Progress bar */}
-                                <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
-                                    <div
-                                        className={`h-3 rounded-full transition-all ${getScoreBgColor(generatedResume.atsScore)}`}
-                                        style={{ width: `${generatedResume.atsScore}%` }}
-                                    />
-                                </div>
+                                        {/* Progress bar */}
+                                        <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
+                                            <div
+                                                className={`h-3 rounded-full transition-all ${getScoreBgColor(generatedResume.atsScore)}`}
+                                                style={{ width: `${generatedResume.atsScore}%` }}
+                                            />
+                                        </div>
 
-                                <p className="text-sm text-gray-600">
-                                    {generatedResume.atsScore >= 90 && '🎯 Excellent! Highly optimized.'}
-                                    {generatedResume.atsScore >= 85 && generatedResume.atsScore < 90 && '✨ Great! Strong ATS compatibility.'}
-                                    {generatedResume.atsScore >= 75 && generatedResume.atsScore < 85 && '👍 Good match.'}
-                                    {generatedResume.atsScore < 75 && '⚠️ Consider adding more keywords.'}
-                                </p>
+                                        <p className="text-sm text-gray-600">
+                                            {generatedResume.atsScore >= 90 && '🎯 Excellent! Highly optimized.'}
+                                            {generatedResume.atsScore >= 85 && generatedResume.atsScore < 90 && '✨ Great! Strong ATS compatibility.'}
+                                            {generatedResume.atsScore >= 75 && generatedResume.atsScore < 85 && '👍 Good match.'}
+                                            {generatedResume.atsScore < 75 && '⚠️ Consider adding more keywords.'}
+                                        </p>
+                                    </>
+                                ) : (
+                                    <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg text-center">
+                                        <p className="text-gray-600">No job description provided for ATS analysis.</p>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Matched Keywords */}
