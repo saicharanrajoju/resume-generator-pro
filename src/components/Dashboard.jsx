@@ -189,13 +189,7 @@ function Dashboard() {
                 />
                 <Route
                     path="cover-letter"
-                    element={
-                        masterResume ? (
-                            <CoverLetterGenerator masterResume={masterResume} />
-                        ) : (
-                            <Navigate to="/dashboard/upload-resume" replace />
-                        )
-                    }
+                    element={<CoverLetterGenerator />}
                 />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>

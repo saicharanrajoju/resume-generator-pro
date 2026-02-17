@@ -5,24 +5,20 @@ const FONT_SIZE = 22; // 11pt
 const PARAGRAPH_SPACING = 200; // after spacing in DXA
 
 /**
- * Parse markdown text into an array of TextRun objects.
- * Supports **bold** and *italic* markers.
+ * Parse markdown inline formatting into TextRun objects.
+ * Supports **bold** and *italic*.
  */
 function parseMarkdownInline(text) {
   const runs = [];
-  // Match **bold**, *italic*, or plain text
   const regex = /(\*\*(.+?)\*\*|\*(.+?)\*|([^*]+))/g;
   let match;
 
   while ((match = regex.exec(text)) !== null) {
     if (match[2]) {
-      // **bold**
       runs.push(new TextRun({ text: match[2], bold: true, font: FONT, size: FONT_SIZE }));
     } else if (match[3]) {
-      // *italic*
       runs.push(new TextRun({ text: match[3], italics: true, font: FONT, size: FONT_SIZE }));
     } else if (match[4]) {
-      // plain text
       runs.push(new TextRun({ text: match[4], font: FONT, size: FONT_SIZE }));
     }
   }
@@ -31,31 +27,24 @@ function parseMarkdownInline(text) {
 }
 
 /**
- * Parse markdown body content into an array of Paragraph elements.
- * Handles paragraphs, bold, italic, and bullet lists.
+ * Parse the full cover letter text into an array of Paragraph elements.
+ *
+ * Rules:
+ * - Double newlines separate paragraphs (with spacing after)
+ * - Single newlines within a block become separate lines (no extra spacing)
+ * - Markdown **bold** and *italic* are supported
+ * - Markdown bullet lines (- or * at start) become proper bullet paragraphs
+ * - Markdown headers (# ) are stripped and rendered as plain text
  */
-function parseMarkdownBody(markdown) {
+function parseFullLetterText(text) {
   const paragraphs = [];
-  // Split on double newlines for paragraphs
-  const blocks = markdown.split(/\n\s*\n/).filter(b => b.trim());
+  const blocks = text.split(/\n\s*\n/).filter(b => b.trim());
 
   for (const block of blocks) {
     const trimmed = block.trim();
-
-    // Skip markdown headers
-    if (/^#{1,6}\s/.test(trimmed)) {
-      const headerText = trimmed.replace(/^#{1,6}\s+/, "");
-      paragraphs.push(
-        new Paragraph({
-          children: parseMarkdownInline(headerText),
-          spacing: { before: 0, after: PARAGRAPH_SPACING },
-        })
-      );
-      continue;
-    }
-
-    // Check if block is a bullet list
     const lines = trimmed.split("\n");
+
+    // Check if the entire block is a bullet list
     const isBulletList = lines.every(l => /^\s*[-*+]\s/.test(l.trim()));
 
     if (isBulletList) {
@@ -70,14 +59,25 @@ function parseMarkdownBody(markdown) {
         );
       }
     } else {
-      // Regular paragraph — join lines with space
-      const text = lines.map(l => l.trim()).join(" ");
-      paragraphs.push(
-        new Paragraph({
-          children: parseMarkdownInline(text),
-          spacing: { before: 0, after: PARAGRAPH_SPACING },
-        })
-      );
+      // Each single newline within the block becomes its own Paragraph (like address lines)
+      for (let i = 0; i < lines.length; i++) {
+        let lineText = lines[i].trim();
+        if (!lineText) continue;
+
+        // Strip markdown headers
+        lineText = lineText.replace(/^#{1,6}\s+/, "");
+
+        const isLastLineInBlock = i === lines.length - 1;
+        paragraphs.push(
+          new Paragraph({
+            children: parseMarkdownInline(lineText),
+            spacing: {
+              before: 0,
+              after: isLastLineInBlock ? PARAGRAPH_SPACING : 0,
+            },
+          })
+        );
+      }
     }
   }
 
@@ -85,118 +85,14 @@ function parseMarkdownBody(markdown) {
 }
 
 /**
- * Format date as "Month Day, Year" (e.g., "February 17, 2026")
- */
-function formatLetterDate(date) {
-  const d = date || new Date();
-  return d.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-}
-
-function emptyParagraph() {
-  return new Paragraph({
-    children: [new TextRun({ text: "", font: FONT, size: FONT_SIZE })],
-    spacing: { before: 0, after: 0 },
-  });
-}
-
-function textParagraph(text, options = {}) {
-  return new Paragraph({
-    children: [
-      new TextRun({
-        text,
-        font: FONT,
-        size: FONT_SIZE,
-        bold: options.bold || false,
-        italics: options.italics || false,
-      }),
-    ],
-    spacing: { before: 0, after: options.spacingAfter ?? 0 },
-    alignment: options.alignment || AlignmentType.LEFT,
-  });
-}
-
-/**
- * Generate a professional cover letter DOCX.
+ * Generate a cover letter DOCX from the full pasted text.
  *
- * @param {Object} params
- * @param {Object} params.sender - { name, address, city, state, zip, phone, email }
- * @param {Object} params.recipient - { name, title, company, address }
- * @param {string} params.body - Markdown formatted cover letter body
- * @param {string} [params.closing] - Closing phrase (default: "Sincerely,")
- * @param {Date} [params.date] - Letter date (default: today)
+ * @param {string} content - The complete cover letter text (header, body, closing — everything)
+ * @param {string} [companyName] - Company name for the filename
  */
-export async function generateCoverLetter({ sender, recipient, body, closing = "Sincerely,", date }) {
-  const children = [];
+export async function generateCoverLetter(content, companyName) {
+  const children = parseFullLetterText(content);
 
-  // === SENDER HEADER BLOCK ===
-  children.push(textParagraph(sender.name, { bold: true }));
-
-  if (sender.address) {
-    children.push(textParagraph(sender.address));
-  }
-  if (sender.city || sender.state || sender.zip) {
-    const cityLine = [sender.city, sender.state].filter(Boolean).join(", ");
-    const full = [cityLine, sender.zip].filter(Boolean).join(" ");
-    children.push(textParagraph(full));
-  }
-  if (sender.phone) {
-    children.push(textParagraph(sender.phone));
-  }
-  if (sender.email) {
-    children.push(textParagraph(sender.email));
-  }
-
-  // === DATE ===
-  children.push(textParagraph(formatLetterDate(date), { spacingAfter: PARAGRAPH_SPACING }));
-
-  // === BLANK LINE ===
-  children.push(emptyParagraph());
-
-  // === RECIPIENT BLOCK ===
-  const recipientName = recipient.name || "Hiring Manager";
-  children.push(textParagraph(recipientName));
-  if (recipient.title) {
-    children.push(textParagraph(recipient.title));
-  }
-  if (recipient.company) {
-    children.push(textParagraph(recipient.company));
-  }
-  if (recipient.address) {
-    children.push(textParagraph(recipient.address));
-  }
-
-  // === BLANK LINE ===
-  children.push(emptyParagraph());
-
-  // === SALUTATION ===
-  children.push(
-    textParagraph(`Dear ${recipientName},`, { spacingAfter: PARAGRAPH_SPACING })
-  );
-
-  // === BODY (parsed from markdown) ===
-  const bodyParagraphs = parseMarkdownBody(body);
-  children.push(...bodyParagraphs);
-
-  // === CLOSING ===
-  children.push(textParagraph(closing, { spacingAfter: 0 }));
-
-  // Signature space (3 blank lines)
-  children.push(emptyParagraph());
-  children.push(emptyParagraph());
-  children.push(emptyParagraph());
-
-  // === TYPED NAME ===
-  children.push(textParagraph(sender.name));
-
-  // === ENCLOSURE ===
-  children.push(emptyParagraph());
-  children.push(textParagraph("Enclosure", { italics: true }));
-
-  // === BUILD DOCUMENT ===
   const doc = new Document({
     styles: {
       default: {
@@ -241,13 +137,12 @@ export async function generateCoverLetter({ sender, recipient, body, closing = "
     ],
   });
 
-  // Generate blob and trigger download
   const blob = await Packer.toBlob(doc);
-  const companyName = (recipient.company || "Company").replace(/[^a-zA-Z0-9]/g, "_");
+  const safeName = (companyName || "Company").replace(/[^a-zA-Z0-9]/g, "_");
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `Cover_Letter_${companyName}.docx`;
+  a.download = `Cover_Letter_${safeName}.docx`;
   a.click();
   URL.revokeObjectURL(url);
 }
