@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import { masterResumeService } from '../services/masterResumeService';
 import MasterResumeUpload from './Profile/MasterResumeUpload';
 import ResumeGenerator from './Generator/ResumeGenerator';
+import CoverLetterGenerator from './Generator/CoverLetterGenerator';
 import UsageTracker from './Generator/UsageTracker';
 import { usageService } from '../services/usageService';
 
@@ -115,6 +116,12 @@ function Dashboard() {
                                     >
                                         Update Master Resume
                                     </button>
+                                    <button
+                                        onClick={() => navigate('/dashboard/cover-letter')}
+                                        className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
+                                    >
+                                        Cover Letter
+                                    </button>
                                 </div>
                             )}
                         </div>
@@ -175,6 +182,16 @@ function Dashboard() {
                     element={
                         masterResume ? (
                             <ResumeGenerator masterResume={masterResume} />
+                        ) : (
+                            <Navigate to="/dashboard/upload-resume" replace />
+                        )
+                    }
+                />
+                <Route
+                    path="cover-letter"
+                    element={
+                        masterResume ? (
+                            <CoverLetterGenerator masterResume={masterResume} />
                         ) : (
                             <Navigate to="/dashboard/upload-resume" replace />
                         )
@@ -242,7 +259,7 @@ function DashboardHome({ masterResume, navigate, user, usageHistory = [] }) {
             </div>
 
             {/* Quick Actions & Analytics */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 <button
                     onClick={() => navigate('/dashboard/generate')}
                     className="bg-blue-600 text-white p-6 rounded-lg hover:bg-blue-700 transition-colors text-left"
@@ -250,6 +267,15 @@ function DashboardHome({ masterResume, navigate, user, usageHistory = [] }) {
                     <div className="text-2xl mb-2">✨</div>
                     <h3 className="text-xl font-semibold mb-1">Generate Tailored Resume</h3>
                     <p className="text-blue-100">Create ATS-optimized resume for any job</p>
+                </button>
+
+                <button
+                    onClick={() => navigate('/dashboard/cover-letter')}
+                    className="bg-green-600 text-white p-6 rounded-lg hover:bg-green-700 transition-colors text-left"
+                >
+                    <div className="text-2xl mb-2">✉️</div>
+                    <h3 className="text-xl font-semibold mb-1">Cover Letter</h3>
+                    <p className="text-green-100">Generate a professional cover letter</p>
                 </button>
 
                 <button
