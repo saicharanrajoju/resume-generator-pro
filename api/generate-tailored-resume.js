@@ -17,7 +17,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { parsedData, jobDescription: jdInput, userProvidedSummary, userProvidedSkills, userProvidedExperience } = req.body;
+    const { parsedData, jobDescription: jdInput, userProvidedSummary, userProvidedSkills, userProvidedExperience, userProvidedProjects } = req.body;
 
     // Make jobDescription optional (default to empty string)
     const jobDescription = jdInput || '';
@@ -358,7 +358,7 @@ export default async function handler(req, res) {
       summary: userProvidedSummary,
       skills: userProvidedSkills,
       experience: userProvidedExperience,
-      projects: processedProjects,
+      projects: userProvidedProjects || processedProjects,
       education: processedEducation,
       certifications: processedCertifications
     };

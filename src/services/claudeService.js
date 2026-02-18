@@ -1,5 +1,5 @@
 export const claudeService = {
-    async generateTailoredResume(masterResume, jobDescription, summary, skills, experience) {
+    async generateTailoredResume(masterResume, jobDescription, summary, skills, experience, projects) {
         try {
             const response = await fetch('/api/generate-tailored-resume', {
                 method: 'POST',
@@ -11,7 +11,8 @@ export const claudeService = {
                     jobDescription: jobDescription,
                     userProvidedSummary: summary,
                     userProvidedSkills: skills,
-                    userProvidedExperience: experience
+                    userProvidedExperience: experience,
+                    userProvidedProjects: projects
                 }),
             });
 

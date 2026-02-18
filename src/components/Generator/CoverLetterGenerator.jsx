@@ -30,7 +30,6 @@ Enclosure`;
 
 function CoverLetterGenerator() {
   const [content, setContent] = useState('');
-  const [companyName, setCompanyName] = useState('');
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
 
@@ -44,7 +43,7 @@ function CoverLetterGenerator() {
 
     setGenerating(true);
     try {
-      await generateCoverLetter(content, companyName);
+      await generateCoverLetter(content);
     } catch (err) {
       console.error('Error generating cover letter:', err);
       setError('Failed to generate cover letter. Please try again.');
@@ -69,19 +68,6 @@ function CoverLetterGenerator() {
       )}
 
       <div className="bg-white rounded-lg shadow-lg p-6 space-y-5">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Company Name <span className="text-gray-400 font-normal">(for filename)</span>
-          </label>
-          <input
-            type="text"
-            value={companyName}
-            onChange={e => setCompanyName(e.target.value)}
-            className="w-full max-w-sm border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Acme Corp"
-          />
-        </div>
-
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Cover Letter *

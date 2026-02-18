@@ -15,7 +15,12 @@ function ResumeGenerator({ masterResume }) {
     const [manualSummary, setManualSummary] = useState('');
     const [manualSkills, setManualSkills] = useState('');
     const [manualExperience, setManualExperience] = useState('');
+    const [manualProjects, setManualProjects] = useState('');
     const [validationErrors, setValidationErrors] = useState({});
+
+    // Import State
+    const [importJson, setImportJson] = useState('');
+    const [importError, setImportError] = useState('');
 
     // Generation State
     const [generatedResume, setGeneratedResume] = useState(null);
@@ -26,6 +31,53 @@ function ResumeGenerator({ masterResume }) {
     // UI State
     const [showPreview, setShowPreview] = useState(true);
     const [pageAnalysis, setPageAnalysis] = useState(null);
+
+    // Import JSON handler
+    const handleImport = () => {
+        setImportError('');
+        if (!importJson.trim()) {
+            setImportError('Paste your JSON from Claude first');
+            return;
+        }
+
+        try {
+            // Try to extract JSON from markdown code block if present
+            let jsonStr = importJson.trim();
+            const codeBlockMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+            if (codeBlockMatch) {
+                jsonStr = codeBlockMatch[1].trim();
+            }
+
+            const parsed = JSON.parse(jsonStr);
+
+            // Populate summary
+            if (parsed.professionalSummary) {
+                setManualSummary(parsed.professionalSummary);
+            }
+
+            // Populate skills
+            if (parsed.skills) {
+                setManualSkills(JSON.stringify(parsed.skills, null, 2));
+            }
+
+            // Populate experience
+            if (parsed.workExperience) {
+                setManualExperience(JSON.stringify(parsed.workExperience, null, 2));
+            }
+
+            // Populate projects
+            if (parsed.projects) {
+                setManualProjects(JSON.stringify(parsed.projects, null, 2));
+            }
+
+            // Clear validation errors and import field
+            setValidationErrors({});
+            setImportJson('');
+            setError(null);
+        } catch (err) {
+            setImportError(`Invalid JSON: ${err.message}`);
+        }
+    };
 
     // JSON Validation Helper
     const validateJSON = (jsonString, fieldName) => {
@@ -98,6 +150,21 @@ function ResumeGenerator({ masterResume }) {
             }
         }
 
+        // Validate and parse projects
+        let projectsArray;
+        if (!manualProjects.trim()) {
+            errors.projects = 'Projects JSON is required';
+        } else {
+            try {
+                projectsArray = JSON.parse(manualProjects);
+                if (!Array.isArray(projectsArray)) {
+                    errors.projects = 'Projects must be a JSON array';
+                }
+            } catch (err) {
+                errors.projects = `Invalid JSON: ${err.message}`;
+            }
+        }
+
         // If there are validation errors, show them and stop
         if (Object.keys(errors).length > 0) {
             setValidationErrors(errors);
@@ -115,7 +182,8 @@ function ResumeGenerator({ masterResume }) {
                 jobDescription,
                 manualSummary,
                 skillsObj,
-                experienceArray
+                experienceArray,
+                projectsArray
             );
 
             setGeneratedResume(result);
@@ -157,6 +225,32 @@ function ResumeGenerator({ masterResume }) {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Left Column - Manual Input */}
                 <div>
+                    {/* Import from Claude */}
+                    <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                        <h2 className="text-xl font-semibold mb-2">Import from Claude</h2>
+                        <p className="text-sm text-gray-500 mb-3">
+                            Paste the entire JSON block from Claude to auto-fill all sections.
+                        </p>
+                        <textarea
+                            value={importJson}
+                            onChange={(e) => {
+                                setImportJson(e.target.value);
+                                setImportError('');
+                            }}
+                            placeholder='Paste your full JSON from Claude here...'
+                            className={`w-full h-40 border rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm font-mono ${importError ? 'border-red-500' : ''}`}
+                        />
+                        {importError && (
+                            <p className="text-red-500 text-xs mt-1">{importError}</p>
+                        )}
+                        <button
+                            onClick={handleImport}
+                            className="mt-3 w-full bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 font-medium transition-colors"
+                        >
+                            Import & Fill All Sections
+                        </button>
+                    </div>
+
                     {/* Input Form */}
                     <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
                         <h2 className="text-xl font-semibold mb-4">Resume Details</h2>
@@ -239,6 +333,35 @@ function ResumeGenerator({ masterResume }) {
                             </button>
                             <p className="text-xs text-gray-500 mt-1">
                                 Include **bold** markers in achievements: "Built models using **Python**"
+                            </p>
+                        </div>
+
+                        {/* Projects Input */}
+                        <div className="mb-6">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Projects (JSON array)
+                            </label>
+                            <textarea
+                                value={manualProjects}
+                                onChange={(e) => {
+                                    setManualProjects(e.target.value);
+                                    setValidationErrors({ ...validationErrors, projects: null });
+                                }}
+                                placeholder='Paste projects JSON from Claude...'
+                                className={`w-full h-48 border rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm font-mono ${validationErrors.projects ? 'border-red-500' : ''
+                                    }`}
+                            />
+                            {validationErrors.projects && (
+                                <p className="text-red-500 text-xs mt-1">{validationErrors.projects}</p>
+                            )}
+                            <button
+                                onClick={() => validateJSON(manualProjects, 'projects')}
+                                className="mt-2 text-xs bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded"
+                            >
+                                Validate JSON
+                            </button>
+                            <p className="text-xs text-gray-500 mt-1">
+                                Format: {`[{"name": "Project", "bullets": ["..."], "technologies": ["..."]}]`}
                             </p>
                         </div>
                     </div>
@@ -410,6 +533,19 @@ function ResumeGenerator({ masterResume }) {
                                                 <ul className="list-disc list-inside text-xs text-gray-700 mt-2 space-y-1">
                                                     {(generatedResume.resume.experience[0].achievements || []).slice(0, 3).map((ach, i) => (
                                                         <li key={i}>{ach}</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+
+                                        {/* First Project */}
+                                        {generatedResume.resume.projects?.[0] && (
+                                            <div className="mb-4">
+                                                <p className="text-xs font-bold text-gray-700 mb-1 uppercase">First Project</p>
+                                                <p className="text-sm font-semibold">{generatedResume.resume.projects[0].name}</p>
+                                                <ul className="list-disc list-inside text-xs text-gray-700 mt-2 space-y-1">
+                                                    {(generatedResume.resume.projects[0].bullets || []).slice(0, 2).map((bullet, i) => (
+                                                        <li key={i}>{bullet}</li>
                                                     ))}
                                                 </ul>
                                             </div>

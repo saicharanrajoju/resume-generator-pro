@@ -1,7 +1,7 @@
 import { Document, Packer, Paragraph, TextRun, AlignmentType, LevelFormat } from "docx";
 
-const FONT = "Calibri";
-const FONT_SIZE = 22; // 11pt
+const FONT = "Times New Roman";
+const FONT_SIZE = 24; // 12pt
 const PARAGRAPH_SPACING = 200; // after spacing in DXA
 
 /**
@@ -88,9 +88,8 @@ function parseFullLetterText(text) {
  * Generate a cover letter DOCX from the full pasted text.
  *
  * @param {string} content - The complete cover letter text (header, body, closing — everything)
- * @param {string} [companyName] - Company name for the filename
  */
-export async function generateCoverLetter(content, companyName) {
+export async function generateCoverLetter(content) {
   const children = parseFullLetterText(content);
 
   const doc = new Document({
@@ -138,11 +137,10 @@ export async function generateCoverLetter(content, companyName) {
   });
 
   const blob = await Packer.toBlob(doc);
-  const safeName = (companyName || "Company").replace(/[^a-zA-Z0-9]/g, "_");
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `Cover_Letter_${safeName}.docx`;
+  a.download = `Cover_Letter.docx`;
   a.click();
   URL.revokeObjectURL(url);
 }
