@@ -1,26 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { claudeService } from '../../services/claudeService';
 import docxService from '../../services/docxService';
 import { useAuth } from '../../hooks/useAuth';
-import { usageService } from '../../services/usageService';
 import { estimateResumePages } from '../../utils/resumePageEstimator';
 
 function ResumeGenerator({ masterResume }) {
     const { user } = useAuth();
     const [jobDescription, setJobDescription] = useState('');
-    const [jdAnalysis, setJdAnalysis] = useState(null);
-
-    // Manual Input State
-    const [manualSummary, setManualSummary] = useState('');
-    const [manualSkills, setManualSkills] = useState('');
-    const [manualExperience, setManualExperience] = useState('');
-    const [manualProjects, setManualProjects] = useState('');
-    const [validationErrors, setValidationErrors] = useState({});
 
     // Import State
     const [importJson, setImportJson] = useState('');
     const [importError, setImportError] = useState('');
+    const [imported, setImported] = useState(false);
+    const [parsedData, setParsedData] = useState(null);
 
     // Generation State
     const [generatedResume, setGeneratedResume] = useState(null);
@@ -31,70 +24,6 @@ function ResumeGenerator({ masterResume }) {
     // UI State
     const [showPreview, setShowPreview] = useState(true);
     const [pageAnalysis, setPageAnalysis] = useState(null);
-
-    // Import JSON handler
-    const handleImport = () => {
-        setImportError('');
-        if (!importJson.trim()) {
-            setImportError('Paste your JSON from Claude first');
-            return;
-        }
-
-        try {
-            // Try to extract JSON from markdown code block if present
-            let jsonStr = importJson.trim();
-            const codeBlockMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
-            if (codeBlockMatch) {
-                jsonStr = codeBlockMatch[1].trim();
-            }
-
-            const parsed = JSON.parse(jsonStr);
-
-            // Populate summary
-            if (parsed.professionalSummary) {
-                setManualSummary(parsed.professionalSummary);
-            }
-
-            // Populate skills
-            if (parsed.skills) {
-                setManualSkills(JSON.stringify(parsed.skills, null, 2));
-            }
-
-            // Populate experience
-            if (parsed.workExperience) {
-                setManualExperience(JSON.stringify(parsed.workExperience, null, 2));
-            }
-
-            // Populate projects
-            if (parsed.projects) {
-                setManualProjects(JSON.stringify(parsed.projects, null, 2));
-            }
-
-            // Clear validation errors and import field
-            setValidationErrors({});
-            setImportJson('');
-            setError(null);
-        } catch (err) {
-            setImportError(`Invalid JSON: ${err.message}`);
-        }
-    };
-
-    // JSON Validation Helper
-    const validateJSON = (jsonString, fieldName) => {
-        try {
-            JSON.parse(jsonString);
-            setValidationErrors({
-                ...validationErrors,
-                [fieldName]: null
-            });
-            alert(`✓ Valid JSON for ${fieldName}!`);
-        } catch (err) {
-            setValidationErrors({
-                ...validationErrors,
-                [fieldName]: `Invalid JSON: ${err.message}`
-            });
-        }
-    };
 
     // Helper: Score color
     const getScoreColor = (score) => {
@@ -110,65 +39,63 @@ function ResumeGenerator({ masterResume }) {
         return 'bg-red-600';
     };
 
-    const handleGenerate = async () => {
-        // Clear previous errors
+    // Import JSON handler
+    const handleImport = () => {
+        setImportError('');
         setError(null);
-        const errors = {};
 
-        // Validate summary
-        if (!manualSummary.trim()) {
-            errors.summary = 'Summary is required';
+        if (!importJson.trim()) {
+            setImportError('Paste your JSON from Claude first');
+            return;
         }
 
-        // Validate and parse skills
-        let skillsObj;
-        if (!manualSkills.trim()) {
-            errors.skills = 'Skills JSON is required';
-        } else {
-            try {
-                skillsObj = JSON.parse(manualSkills);
-                if (typeof skillsObj !== 'object' || Array.isArray(skillsObj)) {
-                    errors.skills = 'Skills must be a JSON object, not an array';
-                }
-            } catch (err) {
-                errors.skills = `Invalid JSON: ${err.message}`;
+        try {
+            // Try to extract JSON from markdown code block if present
+            let jsonStr = importJson.trim();
+            const codeBlockMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+            if (codeBlockMatch) {
+                jsonStr = codeBlockMatch[1].trim();
             }
-        }
 
-        // Validate and parse experience
-        let experienceArray;
-        if (!manualExperience.trim()) {
-            errors.experience = 'Experience JSON is required';
-        } else {
-            try {
-                experienceArray = JSON.parse(manualExperience);
-                if (!Array.isArray(experienceArray)) {
-                    errors.experience = 'Experience must be a JSON array';
-                }
-            } catch (err) {
-                errors.experience = `Invalid JSON: ${err.message}`;
+            const parsed = JSON.parse(jsonStr);
+
+            // Validate required fields
+            const missing = [];
+            if (!parsed.professionalSummary) missing.push('professionalSummary');
+            if (!parsed.skills) missing.push('skills');
+            if (!parsed.workExperience) missing.push('workExperience');
+            if (!parsed.projects) missing.push('projects');
+
+            if (missing.length > 0) {
+                setImportError(`Missing required fields: ${missing.join(', ')}`);
+                return;
             }
-        }
 
-        // Validate and parse projects
-        let projectsArray;
-        if (!manualProjects.trim()) {
-            errors.projects = 'Projects JSON is required';
-        } else {
-            try {
-                projectsArray = JSON.parse(manualProjects);
-                if (!Array.isArray(projectsArray)) {
-                    errors.projects = 'Projects must be a JSON array';
-                }
-            } catch (err) {
-                errors.projects = `Invalid JSON: ${err.message}`;
+            if (typeof parsed.skills !== 'object' || Array.isArray(parsed.skills)) {
+                setImportError('skills must be a JSON object, not an array');
+                return;
             }
-        }
+            if (!Array.isArray(parsed.workExperience)) {
+                setImportError('workExperience must be an array');
+                return;
+            }
+            if (!Array.isArray(parsed.projects)) {
+                setImportError('projects must be an array');
+                return;
+            }
 
-        // If there are validation errors, show them and stop
-        if (Object.keys(errors).length > 0) {
-            setValidationErrors(errors);
-            setError('Please fix the validation errors above');
+            setParsedData(parsed);
+            setImported(true);
+        } catch (err) {
+            setImportError(`Invalid JSON: ${err.message}`);
+        }
+    };
+
+    const handleGenerate = async () => {
+        setError(null);
+
+        if (!parsedData) {
+            setError('Import your JSON first');
             return;
         }
 
@@ -176,23 +103,20 @@ function ResumeGenerator({ masterResume }) {
             setGenerating(true);
             setGeneratingMessage('Combining sections and generating DOCX...');
 
-            // Call service to combine and generate
             const result = await claudeService.generateTailoredResume(
                 masterResume,
                 jobDescription,
-                manualSummary,
-                skillsObj,
-                experienceArray,
-                projectsArray
+                parsedData.professionalSummary,
+                parsedData.skills,
+                parsedData.workExperience,
+                parsedData.projects
             );
 
             setGeneratedResume(result);
             setGeneratingMessage('');
 
-            // Calculate page estimation
             const analysis = estimateResumePages(result.resume);
             setPageAnalysis(analysis);
-
         } catch (err) {
             console.error('Generation error:', err);
             setError('Failed to generate resume. Please check your inputs and try again.');
@@ -216,6 +140,16 @@ function ResumeGenerator({ masterResume }) {
         }
     };
 
+    const handleReset = () => {
+        setImportJson('');
+        setImportError('');
+        setImported(false);
+        setParsedData(null);
+        setGeneratedResume(null);
+        setPageAnalysis(null);
+        setError(null);
+    };
+
     return (
         <div className="max-w-7xl mx-auto px-4 py-8">
             <h1 className="text-3xl font-bold text-gray-800 mb-8">
@@ -223,148 +157,58 @@ function ResumeGenerator({ masterResume }) {
             </h1>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Left Column - Manual Input */}
+                {/* Left Column - Import & Generate */}
                 <div>
                     {/* Import from Claude */}
                     <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
                         <h2 className="text-xl font-semibold mb-2">Import from Claude</h2>
                         <p className="text-sm text-gray-500 mb-3">
-                            Paste the entire JSON block from Claude to auto-fill all sections.
+                            Paste the entire JSON block from Claude to import all sections at once.
                         </p>
                         <textarea
                             value={importJson}
                             onChange={(e) => {
                                 setImportJson(e.target.value);
                                 setImportError('');
+                                if (imported) {
+                                    setImported(false);
+                                    setParsedData(null);
+                                }
                             }}
                             placeholder='Paste your full JSON from Claude here...'
-                            className={`w-full h-40 border rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm font-mono ${importError ? 'border-red-500' : ''}`}
+                            className={`w-full h-48 border rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm font-mono ${importError ? 'border-red-500' : imported ? 'border-green-500' : ''}`}
                         />
                         {importError && (
                             <p className="text-red-500 text-xs mt-1">{importError}</p>
                         )}
+                        {imported && (
+                            <p className="text-green-600 text-xs mt-1">
+                                Imported: {parsedData.workExperience.length} experiences, {parsedData.projects.length} projects, {Object.keys(parsedData.skills).length} skill categories
+                            </p>
+                        )}
                         <button
                             onClick={handleImport}
-                            className="mt-3 w-full bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 font-medium transition-colors"
+                            disabled={imported}
+                            className={`mt-3 w-full text-white px-6 py-3 rounded-lg font-medium transition-colors ${imported ? 'bg-green-600 cursor-default' : 'bg-indigo-600 hover:bg-indigo-700'}`}
                         >
-                            Import & Fill All Sections
+                            {imported ? 'Imported' : 'Import JSON'}
                         </button>
                     </div>
 
-                    {/* Input Form */}
-                    <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-                        <h2 className="text-xl font-semibold mb-4">Resume Details</h2>
-
-                        {/* Summary Input */}
-                        <div className="mb-6">
+                    {/* Job Description (optional, for ATS scoring) */}
+                    {imported && (
+                        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Professional Summary
+                                Job Description <span className="text-gray-400 font-normal">(optional, for ATS scoring)</span>
                             </label>
                             <textarea
-                                value={manualSummary}
-                                onChange={(e) => {
-                                    setManualSummary(e.target.value);
-                                    setValidationErrors({ ...validationErrors, summary: null });
-                                }}
-                                placeholder="Paste summary with **bold** markers for key terms..."
-                                className={`w-full h-24 border rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm ${validationErrors.summary ? 'border-red-500' : ''
-                                    }`}
+                                value={jobDescription}
+                                onChange={(e) => setJobDescription(e.target.value)}
+                                placeholder="Paste the job description here for ATS keyword analysis..."
+                                className="w-full h-32 border rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
                             />
-                            {validationErrors.summary && (
-                                <p className="text-red-500 text-xs mt-1">{validationErrors.summary}</p>
-                            )}
-                            <p className="text-xs text-gray-500 mt-1">
-                                Example: AI/ML Engineer with **2+ years** experience...
-                            </p>
                         </div>
-
-                        {/* Skills Input */}
-                        <div className="mb-6">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Skills (JSON format)
-                            </label>
-                            <textarea
-                                value={manualSkills}
-                                onChange={(e) => {
-                                    setManualSkills(e.target.value);
-                                    setValidationErrors({ ...validationErrors, skills: null });
-                                }}
-                                placeholder='Paste skills JSON from Claude...'
-                                className={`w-full h-32 border rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm font-mono ${validationErrors.skills ? 'border-red-500' : ''
-                                    }`}
-                            />
-                            {validationErrors.skills && (
-                                <p className="text-red-500 text-xs mt-1">{validationErrors.skills}</p>
-                            )}
-                            <button
-                                onClick={() => validateJSON(manualSkills, 'skills')}
-                                className="mt-2 text-xs bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded"
-                            >
-                                ✓ Validate JSON
-                            </button>
-                            <p className="text-xs text-gray-500 mt-1">
-                                Format: {`{"LLM & GenAI": ["skill1"], "Programming & ML": ["skill2"]}`}
-                            </p>
-                        </div>
-
-                        {/* Experience Input */}
-                        <div className="mb-6">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Experience (JSON array with **bold** markers)
-                            </label>
-                            <textarea
-                                value={manualExperience}
-                                onChange={(e) => {
-                                    setManualExperience(e.target.value);
-                                    setValidationErrors({ ...validationErrors, experience: null });
-                                }}
-                                placeholder='Paste experience JSON from Claude...'
-                                className={`w-full h-48 border rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm font-mono ${validationErrors.experience ? 'border-red-500' : ''
-                                    }`}
-                            />
-                            {validationErrors.experience && (
-                                <p className="text-red-500 text-xs mt-1">{validationErrors.experience}</p>
-                            )}
-                            <button
-                                onClick={() => validateJSON(manualExperience, 'experience')}
-                                className="mt-2 text-xs bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded"
-                            >
-                                ✓ Validate JSON
-                            </button>
-                            <p className="text-xs text-gray-500 mt-1">
-                                Include **bold** markers in achievements: "Built models using **Python**"
-                            </p>
-                        </div>
-
-                        {/* Projects Input */}
-                        <div className="mb-6">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Projects (JSON array)
-                            </label>
-                            <textarea
-                                value={manualProjects}
-                                onChange={(e) => {
-                                    setManualProjects(e.target.value);
-                                    setValidationErrors({ ...validationErrors, projects: null });
-                                }}
-                                placeholder='Paste projects JSON from Claude...'
-                                className={`w-full h-48 border rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm font-mono ${validationErrors.projects ? 'border-red-500' : ''
-                                    }`}
-                            />
-                            {validationErrors.projects && (
-                                <p className="text-red-500 text-xs mt-1">{validationErrors.projects}</p>
-                            )}
-                            <button
-                                onClick={() => validateJSON(manualProjects, 'projects')}
-                                className="mt-2 text-xs bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded"
-                            >
-                                Validate JSON
-                            </button>
-                            <p className="text-xs text-gray-500 mt-1">
-                                Format: {`[{"name": "Project", "bullets": ["..."], "technologies": ["..."]}]`}
-                            </p>
-                        </div>
-                    </div>
+                    )}
 
                     {/* Error Display */}
                     {error && (
@@ -374,24 +218,21 @@ function ResumeGenerator({ masterResume }) {
                     )}
 
                     {/* Generate Button */}
-                    <button
-                        onClick={handleGenerate}
-                        disabled={generating}
-                        className="w-full bg-blue-600 text-white px-8 py-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium text-lg transition-colors"
-                    >
-                        {generating ? (
-                            <span className="flex items-center justify-center gap-2">
-                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                                <span>{generatingMessage}</span>
-                            </span>
-                        ) : (
-                            'Generate Resume'
-                        )}
-                    </button>
-                    {!generatedResume && !generating && (
-                        <p className="text-center text-gray-500 mt-4 text-sm">
-                            Paste your sections above to create your resume.
-                        </p>
+                    {imported && (
+                        <button
+                            onClick={handleGenerate}
+                            disabled={generating}
+                            className="w-full bg-blue-600 text-white px-8 py-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium text-lg transition-colors"
+                        >
+                            {generating ? (
+                                <span className="flex items-center justify-center gap-2">
+                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                    <span>{generatingMessage}</span>
+                                </span>
+                            ) : (
+                                'Generate Resume'
+                            )}
+                        </button>
                     )}
                 </div>
 
@@ -419,10 +260,10 @@ function ResumeGenerator({ masterResume }) {
                                         </div>
 
                                         <p className="text-sm text-gray-600">
-                                            {generatedResume.atsScore >= 90 && '🎯 Excellent! Highly optimized.'}
-                                            {generatedResume.atsScore >= 85 && generatedResume.atsScore < 90 && '✨ Great! Strong ATS compatibility.'}
-                                            {generatedResume.atsScore >= 75 && generatedResume.atsScore < 85 && '👍 Good match.'}
-                                            {generatedResume.atsScore < 75 && '⚠️ Consider adding more keywords.'}
+                                            {generatedResume.atsScore >= 90 && 'Excellent! Highly optimized.'}
+                                            {generatedResume.atsScore >= 85 && generatedResume.atsScore < 90 && 'Great! Strong ATS compatibility.'}
+                                            {generatedResume.atsScore >= 75 && generatedResume.atsScore < 85 && 'Good match.'}
+                                            {generatedResume.atsScore < 75 && 'Consider adding more keywords.'}
                                         </p>
                                     </>
                                 ) : (
@@ -436,7 +277,7 @@ function ResumeGenerator({ masterResume }) {
                             {generatedResume.matchedKeywords && generatedResume.matchedKeywords.length > 0 && (
                                 <div className="mb-6">
                                     <h4 className="font-semibold text-green-700 mb-2">
-                                        ✓ Matched Keywords ({generatedResume.matchedKeywords.length})
+                                        Matched Keywords ({generatedResume.matchedKeywords.length})
                                     </h4>
                                     <div className="flex flex-wrap gap-2">
                                         {generatedResume.matchedKeywords.slice(0, 15).map((keyword, i) => (
@@ -452,7 +293,7 @@ function ResumeGenerator({ masterResume }) {
                             {generatedResume.missingKeywords && generatedResume.missingKeywords.length > 0 && (
                                 <div className="mb-6">
                                     <h4 className="font-semibold text-orange-700 mb-2">
-                                        ⚠ Missing Keywords ({generatedResume.missingKeywords.length})
+                                        Missing Keywords ({generatedResume.missingKeywords.length})
                                     </h4>
                                     <div className="flex flex-wrap gap-2 mb-3">
                                         {generatedResume.missingKeywords.slice(0, 10).map((keyword, i) => (
@@ -462,7 +303,7 @@ function ResumeGenerator({ masterResume }) {
                                         ))}
                                     </div>
                                     <div className="p-3 bg-orange-50 border border-orange-200 rounded text-sm">
-                                        <p className="text-orange-800 font-medium mb-1">💡 Suggestion:</p>
+                                        <p className="text-orange-800 font-medium mb-1">Suggestion:</p>
                                         <p className="text-orange-700 text-xs">
                                             Go back to your Claude chat and ask: "Add these keywords naturally: {generatedResume.missingKeywords.slice(0, 5).join(', ')}"
                                         </p>
@@ -474,7 +315,6 @@ function ResumeGenerator({ masterResume }) {
                             {pageAnalysis && (
                                 <div className={`mb-6 p-4 rounded-lg border ${pageAnalysis.isOverTwoPages ? 'bg-yellow-50 border-yellow-200' : 'bg-green-50 border-green-200'}`}>
                                     <h4 className={`font-bold flex items-center gap-2 ${pageAnalysis.isOverTwoPages ? 'text-yellow-800' : 'text-green-800'}`}>
-                                        <span>{pageAnalysis.isOverTwoPages ? '⚠️' : '✅'}</span>
                                         <span>Length Estimate: {pageAnalysis.estimatedPages} Pages</span>
                                     </h4>
                                     <p className={`text-sm mt-1 ${pageAnalysis.isOverTwoPages ? 'text-yellow-700' : 'text-green-700'}`}>
@@ -493,7 +333,6 @@ function ResumeGenerator({ masterResume }) {
                                     className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors bg-white"
                                 >
                                     <h4 className="font-semibold flex items-center gap-2">
-                                        <span>📄</span>
                                         <span>Resume Content Preview</span>
                                     </h4>
                                     {showPreview ? (
@@ -569,16 +408,13 @@ function ResumeGenerator({ masterResume }) {
                                     onClick={handleDownload}
                                     className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-medium transition-colors flex items-center justify-center gap-2"
                                 >
-                                    📥 Download Resume
+                                    Download Resume
                                 </button>
                                 <button
-                                    onClick={() => {
-                                        setGeneratedResume(null);
-                                        setPageAnalysis(null);
-                                    }}
+                                    onClick={handleReset}
                                     className="px-6 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 font-medium transition-colors"
                                 >
-                                    🔄 Reset
+                                    Reset
                                 </button>
                             </div>
                         </div>
@@ -594,7 +430,7 @@ function ResumeGenerator({ masterResume }) {
                     )}
                 </div>
             </div>
-        </div >
+        </div>
     );
 }
 
