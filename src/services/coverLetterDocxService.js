@@ -2,7 +2,6 @@ import { Document, Packer, Paragraph, TextRun, AlignmentType, LevelFormat } from
 
 const FONT = "Times New Roman";
 const FONT_SIZE = 24; // 12pt
-const PARAGRAPH_SPACING = 200; // after spacing in DXA
 
 /**
  * Parse markdown inline formatting into TextRun objects.
@@ -36,12 +35,16 @@ function parseMarkdownInline(text) {
  * - Markdown bullet lines (- or * at start) become proper bullet paragraphs
  * - Markdown headers (# ) are stripped and rendered as plain text
  */
+function emptyParagraph() {
+  return new Paragraph({ children: [], spacing: { before: 0, after: 0 } });
+}
+
 function parseFullLetterText(text) {
   const paragraphs = [];
   const blocks = text.split(/\n\s*\n/).filter(b => b.trim());
 
-  for (const block of blocks) {
-    const trimmed = block.trim();
+  for (let blockIdx = 0; blockIdx < blocks.length; blockIdx++) {
+    const trimmed = blocks[blockIdx].trim();
     const lines = trimmed.split("\n");
 
     // Check if the entire block is a bullet list
@@ -54,30 +57,31 @@ function parseFullLetterText(text) {
           new Paragraph({
             children: parseMarkdownInline(bulletText),
             numbering: { reference: "cover-letter-bullets", level: 0 },
-            spacing: { before: 0, after: 80 },
+            spacing: { before: 0, after: 0 },
           })
         );
       }
     } else {
       // Each single newline within the block becomes its own Paragraph (like address lines)
-      for (let i = 0; i < lines.length; i++) {
-        let lineText = lines[i].trim();
+      for (const line of lines) {
+        let lineText = line.trim();
         if (!lineText) continue;
 
         // Strip markdown headers
         lineText = lineText.replace(/^#{1,6}\s+/, "");
 
-        const isLastLineInBlock = i === lines.length - 1;
         paragraphs.push(
           new Paragraph({
             children: parseMarkdownInline(lineText),
-            spacing: {
-              before: 0,
-              after: isLastLineInBlock ? PARAGRAPH_SPACING : 0,
-            },
+            spacing: { before: 0, after: 0 },
           })
         );
       }
+    }
+
+    // Insert a real blank paragraph between blocks (not after the last one)
+    if (blockIdx < blocks.length - 1) {
+      paragraphs.push(emptyParagraph());
     }
   }
 

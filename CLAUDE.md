@@ -47,16 +47,23 @@ npm run preview
 - `/src/components/` - React components organized by feature
   - `Auth/` - Login and protected route components
   - `Profile/` - Master resume upload and editing
-  - `Generator/` - Resume generation and editing
+  - `Generator/` - Resume and cover letter generation UIs
+  - `Editor/` - TipTap-based resume editor with DOCX export
+  - `Common/` - Shared UI components (e.g., `CollapsibleSection.jsx`)
   - `Dashboard.jsx` - Main dashboard with routing
 
 - `/src/services/` - Service layer for external interactions
   - `firebase.js` - Firebase initialization and exports
   - `claudeService.js` - Claude API calls for generation and refinement
-  - `docxService.js` - DOCX document generation with formatting
+  - `docxService.js` - DOCX document generation with formatting (resumes)
+  - `coverLetterDocxService.js` - DOCX generation for cover letters
   - `masterResumeService.js` - Firestore operations for master resume
   - `resumeParserService.js` - Resume parsing via API
+  - `profileService.js` - Profile data management
   - `usageService.js` - Token usage tracking
+
+- `/src/hooks/` - Custom React hooks
+  - `useAuth.js` - Firebase authentication state hook
 
 - `/src/utils/` - Utility functions and schemas
   - `profileSchema.js` - Data structure definitions for resume sections
@@ -65,7 +72,11 @@ npm run preview
 - `/api/` - Vercel serverless functions
   - `generate-tailored-resume.js` - Main resume generation endpoint
   - `refine-resume.js` - Resume refinement endpoint
-  - `parse-resume.js` - Resume parsing endpoint
+  - `parse-resume.js` - Resume parsing endpoint (PDF/DOCX via Claude)
+  - `update-resume.js` - Updates existing resume data in Firestore
+  - `generate-resume.js` / `parse-resume-text.js` / `process-resume.js` - Supporting endpoints
+
+- `cover-letter-llm-instructions.md` - System prompt used by the cover letter API endpoint; defines the exact output format (blank lines = paragraph breaks, `**bold**`, `*italic*`, `- ` for bullets) that `coverLetterDocxService.js` parses
 
 ### Firebase Structure
 
@@ -96,6 +107,7 @@ Firestore collections:
 - `/dashboard/upload-resume` → Upload new master resume
 - `/dashboard/update-resume` → Update existing master resume
 - `/dashboard/generate` → Generate tailored resume
+- `/dashboard/cover-letter` → Generate cover letter
 
 ## Important Patterns
 
@@ -132,12 +144,12 @@ All API functions are Vercel serverless functions with:
 - 80-second timeout (configured in vercel.json)
 - 1024MB memory allocation
 - POST method for all operations
+- Claude model: `claude-sonnet-4-20250514`
 
 ## Environment Variables
 
-The application requires:
-- Firebase configuration (in `src/services/firebase.js`)
-- Claude API key (used in `/api` functions, typically via Vercel environment variables)
+- `CLAUDE_API_KEY` - Required by all `/api` functions (set in Vercel environment or `.env` locally)
+- Firebase config is hardcoded in `src/services/firebase.js` (no env var needed for frontend)
 
 ## Deployment
 
