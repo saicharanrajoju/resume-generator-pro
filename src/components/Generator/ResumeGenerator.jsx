@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { claudeService } from '../../services/claudeService';
 import docxService from '../../services/docxService';
+import { generateResumePdf } from '../../services/resumePdfService';
 import { useAuth } from '../../hooks/useAuth';
 import { estimateResumePages } from '../../utils/resumePageEstimator';
 
@@ -126,7 +127,7 @@ function ResumeGenerator({ masterResume }) {
         }
     };
 
-    const handleDownload = async () => {
+    const handleDownloadDocx = async () => {
         if (!generatedResume) return;
 
         try {
@@ -136,7 +137,25 @@ function ResumeGenerator({ masterResume }) {
             );
         } catch (err) {
             console.error('Download error:', err);
-            setError('Failed to download resume');
+            setError('Failed to download resume DOCX');
+        }
+    };
+
+    const handleDownloadPdf = async () => {
+        if (!generatedResume) return;
+
+        try {
+            // Need to merge resumeData with personalInfo from masterResume to pass to PDF service properly
+            // docxService handles this internally, but our new pdfService expects a single object
+            const fullResumeData = {
+                ...generatedResume.resume,
+                personalInfo: masterResume.parsedData.personalInfo,
+                contactLocation: generatedResume.resume.contactLocation || masterResume.parsedData.personalInfo?.location
+            };
+            await generateResumePdf(fullResumeData);
+        } catch (err) {
+            console.error('Download error:', err);
+            setError('Failed to download resume PDF');
         }
     };
 
@@ -403,12 +422,18 @@ function ResumeGenerator({ masterResume }) {
                             </div>
 
                             {/* Action Buttons */}
-                            <div className="flex gap-3 mt-6">
+                            <div className="flex flex-col sm:flex-row gap-3 mt-6">
                                 <button
-                                    onClick={handleDownload}
-                                    className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-medium transition-colors flex items-center justify-center gap-2"
+                                    onClick={handleDownloadDocx}
+                                    className="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-medium transition-colors flex items-center justify-center gap-2"
                                 >
-                                    Download Resume
+                                    Download DOCX
+                                </button>
+                                <button
+                                    onClick={handleDownloadPdf}
+                                    className="flex-1 bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 font-medium transition-colors flex items-center justify-center gap-2"
+                                >
+                                    Download PDF
                                 </button>
                                 <button
                                     onClick={handleReset}
