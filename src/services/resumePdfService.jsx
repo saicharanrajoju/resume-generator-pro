@@ -175,12 +175,12 @@ const ResumeDocument = ({ resumeData }) => {
         {resumeData.skills && Object.keys(resumeData.skills).length > 0 && (
           <View>
             <View style={styles.sectionHeaderContainer}>
-              <Text style={styles.sectionTitle}>TECHNICAL SKILLS</Text>
+              <Text style={styles.sectionTitle}>SKILLS</Text>
             </View>
             {Object.entries(resumeData.skills).map(([category, skills]) => (
               <Text key={category} style={styles.paragraph}>
                 <Text style={{ fontFamily: 'Times-Bold' }}>{category}: </Text>
-                {Array.isArray(skills) ? skills.join(', ') : skills}
+                <Text>{Array.isArray(skills) ? skills.join(', ') : skills}</Text>
               </Text>
             ))}
           </View>
@@ -201,11 +201,16 @@ const ResumeDocument = ({ resumeData }) => {
                   </View>
                   <Text>{exp.dates || exp.period}</Text>
                 </View>
+                {exp.position && (
+                  <Text style={{ fontFamily: 'Times-Italic', fontSize: 11, marginBottom: 2 }}>{exp.position}</Text>
+                )}
                 {/* Bullets */}
                 {(exp.achievements || exp.bullets || exp.responsibilities || []).map((bullet, bIndex) => (
                   <View key={bIndex} style={styles.bulletPoint}>
                     <Text style={styles.bulletSymbol}>•</Text>
-                    <Text style={styles.bulletTextContainer}>{parseMarkdown(bullet)}</Text>
+                    <View style={styles.bulletTextContainer}>
+                      <Text>{parseMarkdown(bullet)}</Text>
+                    </View>
                   </View>
                 ))}
               </View>
@@ -228,22 +233,28 @@ const ResumeDocument = ({ resumeData }) => {
                   proj.bullets.map((bullet, bIndex) => (
                     <View key={bIndex} style={styles.bulletPoint}>
                       <Text style={styles.bulletSymbol}>•</Text>
-                      <Text style={styles.bulletTextContainer}>{parseMarkdown(bullet)}</Text>
+                      <View style={styles.bulletTextContainer}>
+                        <Text>{parseMarkdown(bullet)}</Text>
+                      </View>
                     </View>
                   ))
                 ) : proj.description ? (
                   <View style={styles.bulletPoint}>
                     <Text style={styles.bulletSymbol}>•</Text>
-                    <Text style={styles.bulletTextContainer}>{parseMarkdown(proj.description)}</Text>
+                    <View style={styles.bulletTextContainer}>
+                      <Text>{parseMarkdown(proj.description)}</Text>
+                    </View>
                   </View>
                 ) : null}
                 {proj.technologies && proj.technologies.length > 0 && (
                   <View style={styles.bulletPoint}>
                     <Text style={styles.bulletSymbol}>•</Text>
-                    <Text style={styles.bulletTextContainer}>
-                      <Text style={{ fontFamily: 'Times-Bold' }}>Technologies Used: </Text>
-                      {proj.technologies.join(', ')}
-                    </Text>
+                    <View style={styles.bulletTextContainer}>
+                      <Text>
+                        <Text style={{ fontFamily: 'Times-Bold' }}>Technologies Used: </Text>
+                        <Text>{proj.technologies.join(', ')}</Text>
+                      </Text>
+                    </View>
                   </View>
                 )}
               </View>
@@ -304,10 +315,16 @@ const ResumeDocument = ({ resumeData }) => {
   );
 };
 
-export const generateResumePdf = async (resumeData) => {
+export const generateResumePdf = async (resumeData, companyName = '') => {
   const blob = await pdf(<ResumeDocument resumeData={resumeData} />).toBlob();
-  const cleanName = (resumeData.personalInfo?.name || 'Resume').replace(/\s+/g, '');
-  saveAs(blob, `${cleanName}_Resume.pdf`);
+  const nameParts = (resumeData.personalInfo?.name || 'Resume').trim().split(/\s+/);
+  const lastName = nameParts[0];
+  const firstName = nameParts.slice(1).join('');
+  const cleanCompany = companyName ? `_${companyName.replace(/[^a-zA-Z0-9]/g, '')}` : '';
+  const fileName = firstName
+    ? `${lastName}_${firstName}_Resume${cleanCompany}.pdf`
+    : `${lastName}_Resume${cleanCompany}.pdf`;
+  saveAs(blob, fileName);
 };
 
 export default { generateResumePdf };

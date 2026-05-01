@@ -83,7 +83,7 @@ function formatDate(dateStr) {
 }
 
 const docxService = {
-    async generateResume(resumeData, parsedData) {
+    async generateResume(resumeData, parsedData, companyName = '') {
         const sections = [];
         const personalInfo = resumeData.personalInfo || {};
 
@@ -248,7 +248,7 @@ const docxService = {
                 new Paragraph({
                     children: [
                         new TextRun({
-                            text: 'TECHNICAL SKILLS',
+                            text: 'SKILLS',
                             size: 24,
                             bold: true,
                             font: 'Times New Roman',
@@ -368,9 +368,26 @@ const docxService = {
                                 position: convertInchesToTwip(7.5)
                             }
                         ],
-                        spacing: { before: 120, after: 100 }
+                        spacing: { before: 120, after: exp.position ? 40 : 100 }
                     })
                 );
+
+                if (exp.position) {
+                    sections.push(
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: exp.position,
+                                    italics: true,
+                                    size: 22,
+                                    font: 'Times New Roman',
+                                    color: '000000'
+                                })
+                            ],
+                            spacing: { before: 0, after: 80 }
+                        })
+                    );
+                }
 
                 // Bullets with tighter spacing
                 // Bullets with tighter spacing
@@ -768,8 +785,13 @@ const docxService = {
         });
 
         const blob = await Packer.toBlob(doc);
-        const cleanName = (personalInfo.name || 'Resume').replace(/\s+/g, '');
-        const fileName = `${cleanName}_Resume.docx`;
+        const nameParts = (personalInfo.name || 'Resume').trim().split(/\s+/);
+        const lastName = nameParts[0];
+        const firstName = nameParts.slice(1).join('');
+        const cleanCompany = companyName ? `_${companyName.replace(/[^a-zA-Z0-9]/g, '')}` : '';
+        const fileName = firstName
+            ? `${lastName}_${firstName}_Resume${cleanCompany}.docx`
+            : `${lastName}_Resume${cleanCompany}.docx`;
         saveAs(blob, fileName);
     }
 };
