@@ -1,32 +1,32 @@
 import { useState } from 'react';
 import { generateCoverLetter } from '../../services/coverLetterDocxService';
 
-const PLACEHOLDER = `John Doe
-123 Main St
-Ann Arbor, MI 48104
-(555) 123-4567
-john@example.com
-
-February 17, 2026
-
-Hiring Manager
-Acme Corp
-456 Corporate Blvd
-San Francisco, CA 94105
-
-Dear Hiring Manager,
-
-I am writing to express my strong interest in the Software Engineer position at Acme Corp, as advertised on your careers page. With my background in **full-stack development** and passion for building scalable systems, I am excited about the opportunity to contribute to your team.
-
-In my current role at XYZ Inc., I led the development of a **microservices architecture** handling over 10 million requests daily. I collaborated with cross-functional teams to deliver features that increased user engagement by 35%. My experience with *React*, *Node.js*, and *AWS* aligns well with your tech stack requirements.
-
-I am particularly drawn to Acme Corp's mission of democratizing access to technology. I would welcome the opportunity to discuss how my skills and experience can contribute to your team's goals. I have enclosed my resume for your review and look forward to hearing from you.
-
-Sincerely,
-
-John Doe
-
-Enclosure`;
+const PLACEHOLDER = `{
+  "personalInfo": {
+    "name": "John Doe",
+    "email": "john@example.com",
+    "phone": "123-456-7890",
+    "location": "Ann Arbor, MI",
+    "linkedin": "linkedin.com/in/johndoe"
+  },
+  "recipientInfo": {
+    "company": "Acme Corp",
+    "contactPerson": "Hiring Manager",
+    "role": "Senior Software Engineer",
+    "address": "456 Corporate Blvd\\nSan Francisco, CA 94105"
+  },
+  "letterDetails": {
+    "date": "February 17, 2026",
+    "salutation": "Dear Hiring Manager,",
+    "bodyParagraphs": [
+      "I am writing to express my strong interest in the **Senior Software Engineer** position at Acme Corp, as advertised on your careers page. With my background in **full-stack development** and passion for building scalable systems, I am excited about the opportunity to contribute to your team.",
+      "In my current role at XYZ Inc., I led the development of a **microservices architecture** handling over 10 million requests daily. My experience with *React*, *Node.js*, and *AWS* aligns well with your tech stack requirements.",
+      "I am particularly drawn to Acme Corp's mission. I would welcome the opportunity to discuss how my skills and experience can contribute to your team's goals."
+    ],
+    "signOff": "Sincerely,",
+    "signature": "John Doe"
+  }
+}`;
 
 function CoverLetterGenerator() {
   const [content, setContent] = useState('');
@@ -37,13 +37,21 @@ function CoverLetterGenerator() {
     setError('');
 
     if (!content.trim()) {
-      setError('Paste your cover letter content to generate.');
+      setError('Paste your cover letter JSON to generate.');
+      return;
+    }
+
+    let parsedData;
+    try {
+      parsedData = JSON.parse(content);
+    } catch (e) {
+      setError('Invalid JSON format. Please ensure your input is valid JSON.');
       return;
     }
 
     setGenerating(true);
     try {
-      await generateCoverLetter(content);
+      await generateCoverLetter(parsedData);
     } catch (err) {
       console.error('Error generating cover letter:', err);
       setError('Failed to generate cover letter. Please try again.');
@@ -57,7 +65,7 @@ function CoverLetterGenerator() {
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Cover Letter Generator</h1>
         <p className="text-gray-600">
-          Paste your complete cover letter below and download it as a professionally formatted DOCX.
+          Paste your cover letter JSON below and download it as a perfectly formatted ATS-compliant DOCX.
         </p>
       </div>
 
@@ -70,11 +78,10 @@ function CoverLetterGenerator() {
       <div className="bg-white rounded-lg shadow-lg p-6 space-y-5">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Cover Letter *
+            Cover Letter JSON *
           </label>
           <p className="text-xs text-gray-500 mb-2">
-            Include everything — your info, date, recipient, salutation, body, and closing.
-            Supports **bold** and *italic* markdown.
+            Must be valid JSON. Supports **bold** and *italic* markdown in the body paragraphs.
           </p>
           <textarea
             value={content}

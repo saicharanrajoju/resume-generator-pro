@@ -124,10 +124,11 @@ const docxService = {
             }
         };
 
-        // Location
-        if (personalInfo.location) {
+        // Location (contactLocation in resumeData overrides personalInfo.location)
+        const displayLocation = resumeData.contactLocation || personalInfo.location;
+        if (displayLocation) {
             contactChildren.push(new TextRun({
-                text: personalInfo.location,
+                text: displayLocation,
                 size: 22,
                 font: 'Times New Roman',
                 color: '000000'
