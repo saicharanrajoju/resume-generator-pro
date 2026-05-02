@@ -52,7 +52,7 @@ function CoverLetterGenerator() {
 
     setGenerating(true);
     try {
-      const fileNameBase = parsedData?.resumeMeta?.fileName || 'Rajoju_Sai_Charan_Resume';
+      const fileNameBase = (parsedData?.resumeMeta?.fileName || 'Rajoju_Sai_Charan_Resume').replace(/_Resume$/, '');
       await generateCoverLetter(parsedData, fileNameBase);
     } catch (err) {
       console.error('Error generating cover letter:', err);
@@ -80,7 +80,7 @@ function CoverLetterGenerator() {
 
     setGenerating(true);
     try {
-      const fileNameBase = parsedData?.resumeMeta?.fileName || 'Rajoju_Sai_Charan_Resume';
+      const fileNameBase = (parsedData?.resumeMeta?.fileName || 'Rajoju_Sai_Charan_Resume').replace(/_Resume$/, '');
       await generateCoverLetterPdf(parsedData, fileNameBase);
     } catch (err) {
       console.error('Error generating cover letter PDF:', err);

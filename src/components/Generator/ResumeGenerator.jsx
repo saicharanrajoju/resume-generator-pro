@@ -8,7 +8,6 @@ import { estimateResumePages } from '../../utils/resumePageEstimator';
 
 function ResumeGenerator({ masterResume }) {
     const { user } = useAuth();
-    const [jobDescription, setJobDescription] = useState('');
 
     // Import State
     const [importJson, setImportJson] = useState('');
@@ -106,7 +105,7 @@ function ResumeGenerator({ masterResume }) {
 
             const result = await claudeService.generateTailoredResume(
                 masterResume,
-                jobDescription,
+                '',
                 parsedData.professionalSummary,
                 parsedData.skills,
                 parsedData.workExperience,
@@ -228,20 +227,6 @@ function ResumeGenerator({ masterResume }) {
                         </button>
                     </div>
 
-                    {/* Job Description (optional, for ATS scoring) */}
-                    {imported && (
-                        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Job Description <span className="text-gray-400 font-normal">(optional, for ATS scoring)</span>
-                            </label>
-                            <textarea
-                                value={jobDescription}
-                                onChange={(e) => setJobDescription(e.target.value)}
-                                placeholder="Paste the job description here for ATS keyword analysis..."
-                                className="w-full h-32 border rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
-                            />
-                        </div>
-                    )}
 
                     {/* Error Display */}
                     {error && (

@@ -6,14 +6,14 @@ import { saveAs } from 'file-saver';
 // DOCX 0.5 inch margins = 36 points (72 points = 1 inch)
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 22,
-    paddingBottom: 22,
+    paddingTop: 26,
+    paddingBottom: 26,
     paddingLeft: 36,
     paddingRight: 36,
     fontFamily: 'Times-Roman',
     fontSize: 11,
     color: '#000000',
-    lineHeight: 1.15,
+    lineHeight: 1.2,
   },
   headerName: {
     fontSize: 26,
@@ -23,7 +23,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     flexWrap: 'wrap',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   contactText: {
     fontSize: 11,
@@ -37,9 +37,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#000000',
     borderBottomStyle: 'solid',
-    marginTop: 4,
-    marginBottom: 3,
-    paddingBottom: 1,
+    marginTop: 5,
+    marginBottom: 4,
+    paddingBottom: 2,
   },
   sectionTitle: {
     fontSize: 12,
@@ -47,13 +47,13 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   paragraph: {
-    marginBottom: 3,
+    marginBottom: 4,
   },
   jobHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 3,
-    marginBottom: 1,
+    marginTop: 4,
+    marginBottom: 2,
   },
   jobTitleLeft: {
     flexDirection: 'row',
@@ -73,8 +73,8 @@ const styles = StyleSheet.create({
   educationRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 4,
-    marginBottom: 1,
+    marginTop: 5,
+    marginBottom: 2,
   },
 });
 
@@ -148,8 +148,8 @@ const ResumeDocument = ({ resumeData }) => {
       <Page size="LETTER" style={styles.page}>
         
         {/* HEADER */}
-        <View style={{ flexDirection: 'column', marginBottom: 2 }}>
-          <View style={{ alignItems: 'center', marginBottom: 10 }}>
+        <View style={{ flexDirection: 'column', marginBottom: 4 }}>
+          <View style={{ alignItems: 'center', marginBottom: 12 }}>
             <Text style={styles.headerName}>{personalInfo.name || 'Resume'}</Text>
           </View>
           <View style={styles.contactContainer}>
