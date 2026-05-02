@@ -1,82 +1,45 @@
 import React from 'react';
-import { pdf, Document, Page, Text, View, StyleSheet, Link } from '@react-pdf/renderer';
+import { pdf, Document, Page, Text, View, Link } from '@react-pdf/renderer';
 import { saveAs } from 'file-saver';
 
-// Styles to perfectly mirror the DOCX layout
-// DOCX 0.5 inch margins = 36 points (72 points = 1 inch)
-const styles = StyleSheet.create({
-  page: {
-    paddingTop: 26,
-    paddingBottom: 26,
-    paddingLeft: 36,
-    paddingRight: 36,
-    fontFamily: 'Times-Roman',
-    fontSize: 11,
-    color: '#000000',
-    lineHeight: 1.2,
-  },
-  headerName: {
-    fontSize: 26,
-    fontFamily: 'Times-Bold',
-  },
-  contactContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-    marginBottom: 8,
-  },
-  contactText: {
-    fontSize: 11,
-    fontFamily: 'Times-Roman',
-  },
-  link: {
-    color: '#000000',
-    textDecoration: 'underline',
-  },
-  sectionHeaderContainer: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#000000',
-    borderBottomStyle: 'solid',
-    marginTop: 5,
-    marginBottom: 4,
-    paddingBottom: 2,
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontFamily: 'Times-Bold',
-    textTransform: 'uppercase',
-  },
-  paragraph: {
-    marginBottom: 4,
-  },
-  jobHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 4,
-    marginBottom: 2,
-  },
-  jobTitleLeft: {
-    flexDirection: 'row',
-  },
-  bulletPoint: {
-    flexDirection: 'row',
-    marginBottom: 2,
-    paddingLeft: 12,
-  },
-  bulletSymbol: {
-    width: 12,
-    fontFamily: 'Times-Roman',
-  },
-  bulletTextContainer: {
-    flex: 1,
-  },
-  educationRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 5,
-    marginBottom: 2,
-  },
-});
+export const RESUME_DEFAULT_SPACING = {
+  paddingTop: 26,
+  paddingBottom: 26,
+  paddingLeft: 36,
+  paddingRight: 36,
+  lineHeight: 1.2,
+  nameMarginBottom: 12,
+  headerMarginBottom: 4,
+  contactMarginBottom: 8,
+  sectionMarginTop: 5,
+  sectionMarginBottom: 4,
+  paragraphMarginBottom: 4,
+  bulletMarginBottom: 2,
+  jobHeaderMarginTop: 4,
+  jobHeaderMarginBottom: 2,
+  educationMarginTop: 5,
+  educationMarginBottom: 2,
+};
+
+function buildStyles(sp = {}) {
+  const s = { ...RESUME_DEFAULT_SPACING, ...sp };
+  return {
+    page: { paddingTop: s.paddingTop, paddingBottom: s.paddingBottom, paddingLeft: s.paddingLeft, paddingRight: s.paddingRight, fontFamily: 'Times-Roman', fontSize: 11, color: '#000000', lineHeight: s.lineHeight },
+    headerName: { fontSize: 26, fontFamily: 'Times-Bold' },
+    contactContainer: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', marginBottom: s.contactMarginBottom },
+    contactText: { fontSize: 11, fontFamily: 'Times-Roman' },
+    link: { color: '#000000', textDecoration: 'underline' },
+    sectionHeaderContainer: { borderBottomWidth: 1, borderBottomColor: '#000000', borderBottomStyle: 'solid', marginTop: s.sectionMarginTop, marginBottom: s.sectionMarginBottom, paddingBottom: 2 },
+    sectionTitle: { fontSize: 12, fontFamily: 'Times-Bold', textTransform: 'uppercase' },
+    paragraph: { marginBottom: s.paragraphMarginBottom },
+    jobHeader: { flexDirection: 'row', justifyContent: 'space-between', marginTop: s.jobHeaderMarginTop, marginBottom: s.jobHeaderMarginBottom },
+    jobTitleLeft: { flexDirection: 'row' },
+    bulletPoint: { flexDirection: 'row', marginBottom: s.bulletMarginBottom, paddingLeft: 12 },
+    bulletSymbol: { width: 12, fontFamily: 'Times-Roman' },
+    bulletTextContainer: { flex: 1 },
+    educationRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: s.educationMarginTop, marginBottom: s.educationMarginBottom },
+  };
+}
 
 function parseMarkdown(text) {
   if (!text) return null;
@@ -84,15 +47,10 @@ function parseMarkdown(text) {
   const regex = /(\*\*(.+?)\*\*|\*(.+?)\*|([^*]+))/g;
   let match;
   let key = 0;
-
   while ((match = regex.exec(text)) !== null) {
-    if (match[2]) {
-      runs.push(<Text key={key++} style={{ fontFamily: 'Times-Bold' }}>{match[2]}</Text>);
-    } else if (match[3]) {
-      runs.push(<Text key={key++} style={{ fontFamily: 'Times-Italic' }}>{match[3]}</Text>);
-    } else if (match[4]) {
-      runs.push(<Text key={key++}>{match[4]}</Text>);
-    }
+    if (match[2]) runs.push(<Text key={key++} style={{ fontFamily: 'Times-Bold' }}>{match[2]}</Text>);
+    else if (match[3]) runs.push(<Text key={key++} style={{ fontFamily: 'Times-Italic' }}>{match[3]}</Text>);
+    else if (match[4]) runs.push(<Text key={key++}>{match[4]}</Text>);
   }
   return runs;
 }
@@ -110,35 +68,30 @@ function formatDate(dateStr) {
 function shortenDegree(degree) {
   if (!degree) return '';
   return degree
-    .replace('Master of Science', 'M.S.')
-    .replace('Master of Arts', 'M.A.')
-    .replace('Master of Engineering', 'M.Eng.')
-    .replace('Master of Business Administration', 'M.B.A.')
-    .replace('Bachelor of Science', 'B.S.')
-    .replace('Bachelor of Arts', 'B.A.')
-    .replace('Bachelor of Engineering', 'B.E.')
-    .replace('Bachelor of Technology', 'B.Tech.')
+    .replace('Master of Science', 'M.S.').replace('Master of Arts', 'M.A.')
+    .replace('Master of Engineering', 'M.Eng.').replace('Master of Business Administration', 'M.B.A.')
+    .replace('Bachelor of Science', 'B.S.').replace('Bachelor of Arts', 'B.A.')
+    .replace('Bachelor of Engineering', 'B.E.').replace('Bachelor of Technology', 'B.Tech.')
     .replace('Doctor of Philosophy', 'Ph.D.');
 }
 
-const ResumeDocument = ({ resumeData }) => {
+export const ResumeDocument = ({ resumeData, spacing = {} }) => {
+  const styles = buildStyles(spacing);
+  const s = { ...RESUME_DEFAULT_SPACING, ...spacing };
   const personalInfo = resumeData.personalInfo || {};
 
-  // Construct contact info
   const contactItems = [];
   const displayLocation = resumeData.contactLocation || personalInfo.location;
-  
   if (displayLocation) contactItems.push({ type: 'text', text: displayLocation });
   if (personalInfo.phone) contactItems.push({ type: 'text', text: personalInfo.phone });
   if (personalInfo.email) contactItems.push({ type: 'link', text: personalInfo.email, url: `mailto:${personalInfo.email}` });
-  
+
   const addLink = (url, display) => {
     if (!url) return;
     const cleanDisplay = display || url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
     const cleanLink = url.startsWith('http') ? url : `https://${url}`;
     contactItems.push({ type: 'link', text: cleanDisplay, url: cleanLink });
   };
-
   addLink(personalInfo.linkedin);
   addLink(personalInfo.github);
   addLink(personalInfo.website);
@@ -146,21 +99,19 @@ const ResumeDocument = ({ resumeData }) => {
   return (
     <Document>
       <Page size="LETTER" style={styles.page}>
-        
+
         {/* HEADER */}
-        <View style={{ flexDirection: 'column', marginBottom: 4 }}>
-          <View style={{ alignItems: 'center', marginBottom: 12 }}>
+        <View style={{ flexDirection: 'column', marginBottom: s.headerMarginBottom }}>
+          <View style={{ alignItems: 'center', marginBottom: s.nameMarginBottom }}>
             <Text style={styles.headerName}>{personalInfo.name || 'Resume'}</Text>
           </View>
           <View style={styles.contactContainer}>
             {contactItems.map((item, index) => (
               <React.Fragment key={index}>
                 {index > 0 && <Text style={styles.contactText}> | </Text>}
-                {item.type === 'link' ? (
-                  <Link src={item.url} style={[styles.contactText, styles.link]}>{item.text}</Link>
-                ) : (
-                  <Text style={styles.contactText}>{item.text}</Text>
-                )}
+                {item.type === 'link'
+                  ? <Link src={item.url} style={[styles.contactText, styles.link]}>{item.text}</Link>
+                  : <Text style={styles.contactText}>{item.text}</Text>}
               </React.Fragment>
             ))}
           </View>
@@ -169,9 +120,7 @@ const ResumeDocument = ({ resumeData }) => {
         {/* SUMMARY */}
         {resumeData.summary && (
           <View>
-            <View style={styles.sectionHeaderContainer}>
-              <Text style={styles.sectionTitle}>SUMMARY</Text>
-            </View>
+            <View style={styles.sectionHeaderContainer}><Text style={styles.sectionTitle}>SUMMARY</Text></View>
             <Text style={styles.paragraph}>{parseMarkdown(resumeData.summary)}</Text>
           </View>
         )}
@@ -179,9 +128,7 @@ const ResumeDocument = ({ resumeData }) => {
         {/* SKILLS */}
         {resumeData.skills && Object.keys(resumeData.skills).length > 0 && (
           <View>
-            <View style={styles.sectionHeaderContainer}>
-              <Text style={styles.sectionTitle}>SKILLS</Text>
-            </View>
+            <View style={styles.sectionHeaderContainer}><Text style={styles.sectionTitle}>SKILLS</Text></View>
             {Object.entries(resumeData.skills).map(([category, skills]) => (
               <Text key={category} style={styles.paragraph}>
                 <Text style={{ fontFamily: 'Times-Bold' }}>{category}: </Text>
@@ -194,9 +141,7 @@ const ResumeDocument = ({ resumeData }) => {
         {/* EXPERIENCE */}
         {resumeData.experience && resumeData.experience.length > 0 && (
           <View>
-            <View style={styles.sectionHeaderContainer}>
-              <Text style={styles.sectionTitle}>PROFESSIONAL EXPERIENCE</Text>
-            </View>
+            <View style={styles.sectionHeaderContainer}><Text style={styles.sectionTitle}>PROFESSIONAL EXPERIENCE</Text></View>
             {resumeData.experience.map((exp, index) => (
               <View key={index} wrap={false}>
                 <View style={styles.jobHeader}>
@@ -206,16 +151,11 @@ const ResumeDocument = ({ resumeData }) => {
                   </View>
                   <Text>{exp.dates || exp.period}</Text>
                 </View>
-                {exp.position && (
-                  <Text style={{ fontFamily: 'Times-Italic', fontSize: 11, marginBottom: 2 }}>{exp.position}</Text>
-                )}
-                {/* Bullets */}
+                {exp.position && <Text style={{ fontFamily: 'Times-Italic', fontSize: 11, marginBottom: 2 }}>{exp.position}</Text>}
                 {(exp.achievements || exp.bullets || exp.responsibilities || []).map((bullet, bIndex) => (
                   <View key={bIndex} style={styles.bulletPoint}>
                     <Text style={styles.bulletSymbol}>•</Text>
-                    <View style={styles.bulletTextContainer}>
-                      <Text>{parseMarkdown(bullet)}</Text>
-                    </View>
+                    <View style={styles.bulletTextContainer}><Text>{parseMarkdown(bullet)}</Text></View>
                   </View>
                 ))}
               </View>
@@ -226,31 +166,22 @@ const ResumeDocument = ({ resumeData }) => {
         {/* PROJECTS */}
         {resumeData.projects && resumeData.projects.length > 0 && (
           <View>
-            <View style={styles.sectionHeaderContainer}>
-              <Text style={styles.sectionTitle}>PROJECTS</Text>
-            </View>
+            <View style={styles.sectionHeaderContainer}><Text style={styles.sectionTitle}>PROJECTS</Text></View>
             {resumeData.projects.map((proj, index) => (
               <View key={index} wrap={false}>
                 <View style={styles.jobHeader}>
                   <Text style={{ fontFamily: 'Times-Bold' }}>{proj.name}</Text>
                 </View>
-                {proj.bullets && proj.bullets.length > 0 ? (
-                  proj.bullets.map((bullet, bIndex) => (
+                {proj.bullets && proj.bullets.length > 0
+                  ? proj.bullets.map((bullet, bIndex) => (
                     <View key={bIndex} style={styles.bulletPoint}>
                       <Text style={styles.bulletSymbol}>•</Text>
-                      <View style={styles.bulletTextContainer}>
-                        <Text>{parseMarkdown(bullet)}</Text>
-                      </View>
+                      <View style={styles.bulletTextContainer}><Text>{parseMarkdown(bullet)}</Text></View>
                     </View>
                   ))
-                ) : proj.description ? (
-                  <View style={styles.bulletPoint}>
-                    <Text style={styles.bulletSymbol}>•</Text>
-                    <View style={styles.bulletTextContainer}>
-                      <Text>{parseMarkdown(proj.description)}</Text>
-                    </View>
-                  </View>
-                ) : null}
+                  : proj.description
+                    ? <View style={styles.bulletPoint}><Text style={styles.bulletSymbol}>•</Text><View style={styles.bulletTextContainer}><Text>{parseMarkdown(proj.description)}</Text></View></View>
+                    : null}
                 {proj.technologies && proj.technologies.length > 0 && (
                   <View style={styles.bulletPoint}>
                     <Text style={styles.bulletSymbol}>•</Text>
@@ -270,9 +201,7 @@ const ResumeDocument = ({ resumeData }) => {
         {/* CERTIFICATIONS */}
         {resumeData.certifications && resumeData.certifications.length > 0 && (
           <View wrap={false}>
-            <View style={styles.sectionHeaderContainer}>
-              <Text style={styles.sectionTitle}>CERTIFICATIONS</Text>
-            </View>
+            <View style={styles.sectionHeaderContainer}><Text style={styles.sectionTitle}>CERTIFICATIONS</Text></View>
             {resumeData.certifications.map((cert, index) => (
               <Text key={index} style={[styles.paragraph, { fontFamily: 'Times-Bold' }]}>
                 {cert.date ? `${cert.name} (${cert.date})` : cert.name}
@@ -284,14 +213,9 @@ const ResumeDocument = ({ resumeData }) => {
         {/* EDUCATION */}
         {resumeData.education && resumeData.education.length > 0 && (
           <View>
-            <View style={styles.sectionHeaderContainer}>
-              <Text style={styles.sectionTitle}>EDUCATION</Text>
-            </View>
+            <View style={styles.sectionHeaderContainer}><Text style={styles.sectionTitle}>EDUCATION</Text></View>
             {resumeData.education.map((edu, index) => {
-              const degreeText = edu.field
-                ? `${shortenDegree(edu.degree)} in ${edu.field}`
-                : shortenDegree(edu.degree);
-
+              const degreeText = edu.field ? `${shortenDegree(edu.degree)} in ${edu.field}` : shortenDegree(edu.degree);
               return (
                 <View key={index} wrap={false} style={{ marginBottom: 6 }}>
                   <View style={styles.educationRow}>
