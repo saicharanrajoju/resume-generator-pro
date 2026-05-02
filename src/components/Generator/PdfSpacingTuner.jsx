@@ -12,6 +12,26 @@ function useDebounce(value, delay) {
   return debounced;
 }
 
+// Transform the Claude output format into what ResumeDocument expects
+function transformResumeJson(parsed, personalInfo) {
+  return {
+    personalInfo,
+    contactLocation: parsed.contactLocation,
+    summary: parsed.professionalSummary || parsed.summary,
+    skills: parsed.skills,
+    experience: (parsed.workExperience || parsed.experience || []).map(exp => ({
+      company: exp.company,
+      position: exp.position,
+      location: exp.location,
+      dates: exp.dates || exp.period,
+      achievements: exp.achievements || exp.bullets || [],
+    })),
+    projects: parsed.projects || [],
+    education: parsed.education || [],
+    certifications: parsed.certifications || [],
+  };
+}
+
 function SliderRow({ label, name, value, min, max, step, onChange }) {
   return (
     <div className="flex items-center gap-2 mb-2">
@@ -85,27 +105,65 @@ const CL_SLIDER_CONFIG = [
   ]},
 ];
 
+const DEFAULT_PERSONAL_INFO = {
+  name: 'Sai Charan Rajoju',
+  email: 'rajojusaicharan0712@gmail.com',
+  phone: '',
+  linkedin: '',
+  github: '',
+  website: '',
+};
+
+function PersonalInfoForm({ info, onChange }) {
+  const fields = [
+    { key: 'name', placeholder: 'Full Name' },
+    { key: 'phone', placeholder: 'Phone' },
+    { key: 'email', placeholder: 'Email' },
+    { key: 'linkedin', placeholder: 'LinkedIn URL' },
+    { key: 'github', placeholder: 'GitHub URL' },
+    { key: 'website', placeholder: 'Website URL' },
+  ];
+  return (
+    <div className="mb-4">
+      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Personal Info</p>
+      {fields.map(({ key, placeholder }) => (
+        <input
+          key={key}
+          type="text"
+          value={info[key] || ''}
+          onChange={e => onChange({ ...info, [key]: e.target.value })}
+          placeholder={placeholder}
+          className="w-full border border-gray-200 rounded px-2 py-1 text-xs mb-1.5 focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+        />
+      ))}
+    </div>
+  );
+}
+
 function ResumeTab() {
   const [jsonText, setJsonText] = useState('');
   const [resumeData, setResumeData] = useState(null);
+  const [personalInfo, setPersonalInfo] = useState(DEFAULT_PERSONAL_INFO);
   const [jsonError, setJsonError] = useState('');
   const [spacing, setSpacing] = useState(RESUME_DEFAULT_SPACING);
   const [copied, setCopied] = useState(false);
   const debouncedSpacing = useDebounce(spacing, 400);
+  const debouncedPersonalInfo = useDebounce(personalInfo, 400);
 
   const handleLoad = () => {
     setJsonError('');
     try {
-      setResumeData(JSON.parse(jsonText));
+      const parsed = JSON.parse(jsonText);
+      setResumeData(parsed);
     } catch {
       setJsonError('Invalid JSON');
     }
   };
 
+  const transformedData = resumeData ? transformResumeJson(resumeData, debouncedPersonalInfo) : null;
+
   const updateSpacing = (name, value) => setSpacing(prev => ({ ...prev, [name]: value }));
-
   const handleReset = () => setSpacing(RESUME_DEFAULT_SPACING);
-
   const handleCopy = () => {
     navigator.clipboard.writeText(JSON.stringify(spacing, null, 2));
     setCopied(true);
@@ -114,17 +172,17 @@ function ResumeTab() {
 
   return (
     <div className="flex h-full">
-      {/* Left controls */}
       <div className="w-72 shrink-0 overflow-y-auto bg-gray-50 border-r border-gray-200 p-4">
         {!resumeData ? (
           <div>
-            <p className="text-sm font-medium text-gray-700 mb-2">Paste resume JSON</p>
+            <p className="text-sm font-medium text-gray-700 mb-1">Paste Claude JSON output</p>
+            <p className="text-xs text-gray-400 mb-2">Works with the standard Claude resume JSON format.</p>
             <textarea
               value={jsonText}
               onChange={e => setJsonText(e.target.value)}
-              rows={12}
+              rows={14}
               className="w-full border border-gray-300 rounded-lg p-2 text-xs font-mono mb-2 resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder='{"personalInfo": {...}, "experience": [...], ...}'
+              placeholder='{"resumeMeta": {...}, "workExperience": [...], ...}'
             />
             {jsonError && <p className="text-red-600 text-xs mb-2">{jsonError}</p>}
             <button onClick={handleLoad} className="w-full bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
@@ -138,6 +196,8 @@ function ResumeTab() {
               <button onClick={() => setResumeData(null)} className="text-xs text-gray-400 hover:text-gray-600 underline">Change</button>
             </div>
 
+            <PersonalInfoForm info={personalInfo} onChange={setPersonalInfo} />
+
             {RESUME_SLIDER_CONFIG.map(({ group, items }) => (
               <SliderGroup key={group} title={group}>
                 {items.map(item => (
@@ -147,9 +207,7 @@ function ResumeTab() {
             ))}
 
             <div className="flex gap-2 mt-2">
-              <button onClick={handleReset} className="flex-1 border border-gray-300 text-gray-600 py-1.5 rounded text-xs hover:bg-gray-100">
-                Reset
-              </button>
+              <button onClick={handleReset} className="flex-1 border border-gray-300 text-gray-600 py-1.5 rounded text-xs hover:bg-gray-100">Reset</button>
               <button onClick={handleCopy} className="flex-1 bg-blue-600 text-white py-1.5 rounded text-xs hover:bg-blue-700">
                 {copied ? 'Copied!' : 'Copy Values'}
               </button>
@@ -162,11 +220,10 @@ function ResumeTab() {
         )}
       </div>
 
-      {/* Right preview */}
       <div className="flex-1 bg-gray-200">
-        {resumeData ? (
+        {transformedData ? (
           <PDFViewer width="100%" height="100%" showToolbar={false}>
-            <ResumeDocument resumeData={resumeData} spacing={debouncedSpacing} />
+            <ResumeDocument resumeData={transformedData} spacing={debouncedSpacing} />
           </PDFViewer>
         ) : (
           <div className="flex items-center justify-center h-full text-gray-400 text-sm">
@@ -196,9 +253,7 @@ function CoverLetterTab() {
   };
 
   const updateSpacing = (name, value) => setSpacing(prev => ({ ...prev, [name]: value }));
-
   const handleReset = () => setSpacing(CL_DEFAULT_SPACING);
-
   const handleCopy = () => {
     navigator.clipboard.writeText(JSON.stringify(spacing, null, 2));
     setCopied(true);
@@ -207,15 +262,14 @@ function CoverLetterTab() {
 
   return (
     <div className="flex h-full">
-      {/* Left controls */}
       <div className="w-72 shrink-0 overflow-y-auto bg-gray-50 border-r border-gray-200 p-4">
         {!clData ? (
           <div>
-            <p className="text-sm font-medium text-gray-700 mb-2">Paste cover letter JSON</p>
+            <p className="text-sm font-medium text-gray-700 mb-1">Paste cover letter JSON</p>
             <textarea
               value={jsonText}
               onChange={e => setJsonText(e.target.value)}
-              rows={12}
+              rows={14}
               className="w-full border border-gray-300 rounded-lg p-2 text-xs font-mono mb-2 resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder='{"personalInfo": {...}, "letterDetails": {...}, ...}'
             />
@@ -240,9 +294,7 @@ function CoverLetterTab() {
             ))}
 
             <div className="flex gap-2 mt-2">
-              <button onClick={handleReset} className="flex-1 border border-gray-300 text-gray-600 py-1.5 rounded text-xs hover:bg-gray-100">
-                Reset
-              </button>
+              <button onClick={handleReset} className="flex-1 border border-gray-300 text-gray-600 py-1.5 rounded text-xs hover:bg-gray-100">Reset</button>
               <button onClick={handleCopy} className="flex-1 bg-blue-600 text-white py-1.5 rounded text-xs hover:bg-blue-700">
                 {copied ? 'Copied!' : 'Copy Values'}
               </button>
@@ -255,7 +307,6 @@ function CoverLetterTab() {
         )}
       </div>
 
-      {/* Right preview */}
       <div className="flex-1 bg-gray-200">
         {clData ? (
           <PDFViewer width="100%" height="100%" showToolbar={false}>
@@ -276,7 +327,6 @@ export default function PdfSpacingTuner() {
 
   return (
     <div className="flex flex-col" style={{ height: 'calc(100vh - 64px)' }}>
-      {/* Tab bar */}
       <div className="flex border-b border-gray-200 bg-white px-4 shrink-0">
         {[{ id: 'resume', label: 'Resume PDF' }, { id: 'cover', label: 'Cover Letter PDF' }].map(t => (
           <button
@@ -288,8 +338,6 @@ export default function PdfSpacingTuner() {
           </button>
         ))}
       </div>
-
-      {/* Tab content */}
       <div className="flex-1 overflow-hidden">
         {tab === 'resume' ? <ResumeTab /> : <CoverLetterTab />}
       </div>
