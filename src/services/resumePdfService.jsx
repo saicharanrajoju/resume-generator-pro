@@ -16,13 +16,13 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontFamily: 'Times-Bold',
     textAlign: 'center',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   contactContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     flexWrap: 'wrap',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   contactText: {
     fontSize: 11,
@@ -36,8 +36,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#000000',
     borderBottomStyle: 'solid',
-    marginTop: 12,
-    marginBottom: 6,
+    marginTop: 8,
+    marginBottom: 4,
     paddingBottom: 2,
   },
   sectionTitle: {
@@ -46,12 +46,12 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   paragraph: {
-    marginBottom: 6,
+    marginBottom: 4,
   },
   jobHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 6,
+    marginTop: 4,
     marginBottom: 2,
   },
   jobTitleLeft: {
@@ -147,18 +147,20 @@ const ResumeDocument = ({ resumeData }) => {
       <Page size="LETTER" style={styles.page}>
         
         {/* HEADER */}
-        <Text style={styles.headerName}>{personalInfo.name || 'Resume'}</Text>
-        <View style={styles.contactContainer}>
-          {contactItems.map((item, index) => (
-            <React.Fragment key={index}>
-              {index > 0 && <Text style={styles.contactText}> | </Text>}
-              {item.type === 'link' ? (
-                <Link src={item.url} style={[styles.contactText, styles.link]}>{item.text}</Link>
-              ) : (
-                <Text style={styles.contactText}>{item.text}</Text>
-              )}
-            </React.Fragment>
-          ))}
+        <View style={{ flexDirection: 'column', marginBottom: 4 }}>
+          <Text style={styles.headerName}>{personalInfo.name || 'Resume'}</Text>
+          <View style={styles.contactContainer}>
+            {contactItems.map((item, index) => (
+              <React.Fragment key={index}>
+                {index > 0 && <Text style={styles.contactText}> | </Text>}
+                {item.type === 'link' ? (
+                  <Link src={item.url} style={[styles.contactText, styles.link]}>{item.text}</Link>
+                ) : (
+                  <Text style={styles.contactText}>{item.text}</Text>
+                )}
+              </React.Fragment>
+            ))}
+          </View>
         </View>
 
         {/* SUMMARY */}
