@@ -6,7 +6,7 @@ import { saveAs } from 'file-saver';
 // DOCX 1.0 inch margins = 72 points
 const styles = StyleSheet.create({
   page: {
-    padding: 72,
+    padding: 36,
     fontFamily: 'Times-Roman',
     fontSize: 11,
     color: '#000000',

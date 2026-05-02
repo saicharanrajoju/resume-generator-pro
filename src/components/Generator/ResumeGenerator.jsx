@@ -147,14 +147,23 @@ function ResumeGenerator({ masterResume }) {
         if (!generatedResume) return;
 
         try {
-            // Need to merge resumeData with personalInfo from masterResume to pass to PDF service properly
-            // docxService handles this internally, but our new pdfService expects a single object
-            const fullResumeData = {
-                ...generatedResume.resume,
-                personalInfo: masterResume.parsedData.personalInfo,
-                contactLocation: generatedResume.resume.contactLocation || masterResume.parsedData.personalInfo?.location
+            const stored = masterResume?.parsedData?.personalInfo || {};
+            const onlinePresence = masterResume?.parsedData?.onlinePresence || {};
+            const firstName = stored.firstName || '';
+            const lastName = stored.lastName || '';
+            const personalInfo = {
+                name: stored.name
+                    || (firstName && lastName ? `${firstName} ${lastName}` : firstName || lastName)
+                    || 'Rajoju Sai Charan',
+                location: stored.location,
+                phone: stored.phone,
+                email: stored.email,
+                linkedin: stored.linkedin || onlinePresence.linkedin,
+                github: stored.github || onlinePresence.github,
+                website: stored.website || onlinePresence.website,
             };
-            await generateResumePdf(fullResumeData, companyName);
+            const resumeData = { ...generatedResume.resume, personalInfo };
+            await generateResumePdf(resumeData, companyName);
         } catch (err) {
             console.error('Download error:', err);
             setError('Failed to download resume PDF');
