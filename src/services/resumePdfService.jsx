@@ -15,8 +15,6 @@ const styles = StyleSheet.create({
   headerName: {
     fontSize: 26,
     fontFamily: 'Times-Bold',
-    textAlign: 'center',
-    marginBottom: 6,
   },
   contactContainer: {
     flexDirection: 'row',
@@ -36,7 +34,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#000000',
     borderBottomStyle: 'solid',
-    marginTop: 8,
+    marginTop: 6,
     marginBottom: 4,
     paddingBottom: 2,
   },
@@ -148,7 +146,9 @@ const ResumeDocument = ({ resumeData }) => {
         
         {/* HEADER */}
         <View style={{ flexDirection: 'column', marginBottom: 4 }}>
-          <Text style={styles.headerName}>{personalInfo.name || 'Resume'}</Text>
+          <View style={{ alignItems: 'center', marginBottom: 6 }}>
+            <Text style={styles.headerName}>{personalInfo.name || 'Resume'}</Text>
+          </View>
           <View style={styles.contactContainer}>
             {contactItems.map((item, index) => (
               <React.Fragment key={index}>
