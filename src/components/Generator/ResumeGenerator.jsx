@@ -132,8 +132,9 @@ function ResumeGenerator({ masterResume }) {
 
         try {
             const fileNameBase = parsedData?.resumeMeta?.fileName || 'Rajoju_Sai_Charan_Resume';
+            const resumeData = { ...generatedResume.resume, contactLocation: parsedData?.contactLocation };
             await docxService.generateResume(
-                generatedResume.resume,
+                resumeData,
                 masterResume.parsedData,
                 fileNameBase
             );
@@ -164,7 +165,7 @@ function ResumeGenerator({ masterResume }) {
                 website: stored.website || onlinePresence.website || api.website,
             };
             const fileNameBase = parsedData?.resumeMeta?.fileName || 'Rajoju_Sai_Charan_Resume';
-            const resumeData = { ...generatedResume.resume, personalInfo };
+            const resumeData = { ...generatedResume.resume, personalInfo, contactLocation: parsedData?.contactLocation };
             await generateResumePdf(resumeData, fileNameBase);
         } catch (err) {
             console.error('Download error:', err);

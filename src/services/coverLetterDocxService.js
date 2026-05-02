@@ -1,4 +1,4 @@
-import { Document, Packer, Paragraph, TextRun, AlignmentType, ExternalHyperlink, BorderStyle } from "docx";
+import { Document, Packer, Paragraph, TextRun, AlignmentType, ExternalHyperlink, BorderStyle, convertInchesToTwip } from "docx";
 
 const FONT = "Times New Roman";
 const FONT_SIZE = 22; // 11pt, standard business size
@@ -252,7 +252,7 @@ export async function generateCoverLetter(data, fileNameBase = 'Rajoju_Sai_Chara
         properties: {
           page: {
             size: { width: 12240, height: 15840 }, // Standard US Letter
-            margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 }, // 1-inch margins
+            margin: { top: convertInchesToTwip(0.5), right: convertInchesToTwip(0.5), bottom: convertInchesToTwip(0.5), left: convertInchesToTwip(0.5) },
           },
         },
         children: sections,

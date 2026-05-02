@@ -6,10 +6,14 @@ import { saveAs } from 'file-saver';
 // DOCX 1.0 inch margins = 72 points
 const styles = StyleSheet.create({
   page: {
-    padding: 36,
+    paddingTop: 22,
+    paddingBottom: 22,
+    paddingLeft: 36,
+    paddingRight: 36,
     fontFamily: 'Times-Roman',
     fontSize: 11,
     color: '#000000',
+    lineHeight: 1.15,
   },
   headerName: {
     fontSize: 26,
@@ -21,7 +25,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     flexWrap: 'wrap',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   contactText: {
     fontSize: 11,
@@ -39,7 +43,7 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   paragraph: {
-    marginBottom: 10,
+    marginBottom: 8,
     lineHeight: 1.15,
   },
   boldText: {
