@@ -33,7 +33,7 @@ function parseMarkdownInline(text) {
  *
  * @param {Object} data - The parsed JSON data for the cover letter
  */
-export async function generateCoverLetter(data) {
+export async function generateCoverLetter(data, fileNameBase = 'Rajoju_Sai_Charan_Cover_Letter') {
   const sections = [];
   const personalInfo = data.personalInfo || {};
   const recipientInfo = data.recipientInfo || {};
@@ -265,8 +265,7 @@ export async function generateCoverLetter(data) {
   const a = document.createElement("a");
   a.href = url;
   
-  const cleanName = (personalInfo.name || "Cover_Letter").replace(/\s+/g, "");
-  a.download = `${cleanName}_Cover_Letter.docx`;
+  a.download = `${fileNameBase}_Cover_Letter.docx`;
   
   a.click();
   URL.revokeObjectURL(url);

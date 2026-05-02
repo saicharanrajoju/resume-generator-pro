@@ -154,10 +154,9 @@ const CoverLetterDocument = ({ data }) => {
   );
 };
 
-export const generateCoverLetterPdf = async (data) => {
+export const generateCoverLetterPdf = async (data, fileNameBase = 'Rajoju_Sai_Charan_Cover_Letter') => {
   const blob = await pdf(<CoverLetterDocument data={data} />).toBlob();
-  const cleanName = (data.personalInfo?.name || 'Cover_Letter').replace(/\s+/g, '');
-  saveAs(blob, `${cleanName}_Cover_Letter.pdf`);
+  saveAs(blob, `${fileNameBase}_Cover_Letter.pdf`);
 };
 
 export default { generateCoverLetterPdf };

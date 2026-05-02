@@ -83,7 +83,7 @@ function formatDate(dateStr) {
 }
 
 const docxService = {
-    async generateResume(resumeData, parsedData, companyName = '') {
+    async generateResume(resumeData, parsedData, fileNameBase = 'Rajoju_Sai_Charan_Resume') {
         const sections = [];
         const personalInfo = resumeData.personalInfo || {};
 
@@ -785,14 +785,7 @@ const docxService = {
         });
 
         const blob = await Packer.toBlob(doc);
-        const nameParts = (personalInfo.name || 'Resume').trim().split(/\s+/);
-        const lastName = nameParts[0];
-        const firstName = nameParts.slice(1).join('');
-        const cleanCompany = companyName ? `_${companyName.replace(/[^a-zA-Z0-9]/g, '')}` : '';
-        const fileName = firstName
-            ? `${lastName}_${firstName}_Resume${cleanCompany}.docx`
-            : `${lastName}_Resume${cleanCompany}.docx`;
-        saveAs(blob, fileName);
+        saveAs(blob, `${fileNameBase}.docx`);
     }
 };
 

@@ -6,7 +6,10 @@ import { saveAs } from 'file-saver';
 // DOCX 0.5 inch margins = 36 points (72 points = 1 inch)
 const styles = StyleSheet.create({
   page: {
-    padding: 36,
+    paddingTop: 28,
+    paddingBottom: 28,
+    paddingLeft: 36,
+    paddingRight: 36,
     fontFamily: 'Times-Roman',
     fontSize: 11,
     color: '#000000',
@@ -146,7 +149,7 @@ const ResumeDocument = ({ resumeData }) => {
         
         {/* HEADER */}
         <View style={{ flexDirection: 'column', marginBottom: 4 }}>
-          <View style={{ alignItems: 'center', marginBottom: 6 }}>
+          <View style={{ alignItems: 'center', marginBottom: 14 }}>
             <Text style={styles.headerName}>{personalInfo.name || 'Resume'}</Text>
           </View>
           <View style={styles.contactContainer}>
@@ -317,16 +320,9 @@ const ResumeDocument = ({ resumeData }) => {
   );
 };
 
-export const generateResumePdf = async (resumeData, companyName = '') => {
+export const generateResumePdf = async (resumeData, fileNameBase = 'Rajoju_Sai_Charan_Resume') => {
   const blob = await pdf(<ResumeDocument resumeData={resumeData} />).toBlob();
-  const nameParts = (resumeData.personalInfo?.name || 'Resume').trim().split(/\s+/);
-  const lastName = nameParts[0];
-  const firstName = nameParts.slice(1).join('');
-  const cleanCompany = companyName ? `_${companyName.replace(/[^a-zA-Z0-9]/g, '')}` : '';
-  const fileName = firstName
-    ? `${lastName}_${firstName}_Resume${cleanCompany}.pdf`
-    : `${lastName}_Resume${cleanCompany}.pdf`;
-  saveAs(blob, fileName);
+  saveAs(blob, `${fileNameBase}.pdf`);
 };
 
 export default { generateResumePdf };

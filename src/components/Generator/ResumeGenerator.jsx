@@ -9,7 +9,6 @@ import { estimateResumePages } from '../../utils/resumePageEstimator';
 function ResumeGenerator({ masterResume }) {
     const { user } = useAuth();
     const [jobDescription, setJobDescription] = useState('');
-    const [companyName, setCompanyName] = useState('');
 
     // Import State
     const [importJson, setImportJson] = useState('');
@@ -132,10 +131,11 @@ function ResumeGenerator({ masterResume }) {
         if (!generatedResume) return;
 
         try {
+            const fileNameBase = parsedData?.resumeMeta?.fileName || 'Rajoju_Sai_Charan_Resume';
             await docxService.generateResume(
                 generatedResume.resume,
                 masterResume.parsedData,
-                companyName
+                fileNameBase
             );
         } catch (err) {
             console.error('Download error:', err);
@@ -149,21 +149,23 @@ function ResumeGenerator({ masterResume }) {
         try {
             const stored = masterResume?.parsedData?.personalInfo || {};
             const onlinePresence = masterResume?.parsedData?.onlinePresence || {};
+            const api = generatedResume.resume.personalInfo || {};
             const firstName = stored.firstName || '';
             const lastName = stored.lastName || '';
             const personalInfo = {
                 name: stored.name
                     || (firstName && lastName ? `${firstName} ${lastName}` : firstName || lastName)
-                    || 'Rajoju Sai Charan',
-                location: stored.location,
-                phone: stored.phone,
-                email: stored.email,
-                linkedin: stored.linkedin || onlinePresence.linkedin,
-                github: stored.github || onlinePresence.github,
-                website: stored.website || onlinePresence.website,
+                    || api.name,
+                location: stored.location || api.location,
+                phone: stored.phone || api.phone,
+                email: stored.email || api.email,
+                linkedin: stored.linkedin || onlinePresence.linkedin || api.linkedin,
+                github: stored.github || onlinePresence.github || api.github,
+                website: stored.website || onlinePresence.website || api.website,
             };
+            const fileNameBase = parsedData?.resumeMeta?.fileName || 'Rajoju_Sai_Charan_Resume';
             const resumeData = { ...generatedResume.resume, personalInfo };
-            await generateResumePdf(resumeData, companyName);
+            await generateResumePdf(resumeData, fileNameBase);
         } catch (err) {
             console.error('Download error:', err);
             setError('Failed to download resume PDF');
@@ -236,16 +238,6 @@ function ResumeGenerator({ masterResume }) {
                                 onChange={(e) => setJobDescription(e.target.value)}
                                 placeholder="Paste the job description here for ATS keyword analysis..."
                                 className="w-full h-32 border rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
-                            />
-                            <label className="block text-sm font-medium text-gray-700 mt-4 mb-2">
-                                Company Name <span className="text-gray-400 font-normal">(optional, for filename)</span>
-                            </label>
-                            <input
-                                type="text"
-                                value={companyName}
-                                onChange={(e) => setCompanyName(e.target.value)}
-                                placeholder="e.g. Google"
-                                className="w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                             />
                         </div>
                     )}
