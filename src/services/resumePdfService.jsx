@@ -3,20 +3,20 @@ import { pdf, Document, Page, Text, View, Link } from '@react-pdf/renderer';
 import { saveAs } from 'file-saver';
 
 export const RESUME_DEFAULT_SPACING = {
-  paddingTop: 26,
-  paddingBottom: 26,
+  paddingTop: 25,
+  paddingBottom: 23,
   paddingLeft: 36,
   paddingRight: 36,
   lineHeight: 1.2,
-  nameMarginBottom: 12,
-  headerMarginBottom: 4,
-  contactMarginBottom: 8,
-  sectionMarginTop: 5,
-  sectionMarginBottom: 4,
+  nameMarginBottom: 22,
+  headerMarginBottom: 5,
+  contactMarginBottom: 5,
+  sectionMarginTop: 4,
+  sectionMarginBottom: 3,
   paragraphMarginBottom: 4,
   bulletMarginBottom: 2,
   jobHeaderMarginTop: 4,
-  jobHeaderMarginBottom: 2,
+  jobHeaderMarginBottom: 3,
   educationMarginTop: 5,
   educationMarginBottom: 2,
 };
