@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { claudeService } from '../../services/claudeService';
 import docxService from '../../services/docxService';
-import { generateResumePdf } from '../../services/resumePdfService';
 import { useAuth } from '../../hooks/useAuth';
 import { estimateResumePages } from '../../utils/resumePageEstimator';
 
@@ -143,34 +142,6 @@ function ResumeGenerator({ masterResume }) {
         }
     };
 
-    const handleDownloadPdf = async () => {
-        if (!generatedResume) return;
-
-        try {
-            const stored = masterResume?.parsedData?.personalInfo || {};
-            const onlinePresence = masterResume?.parsedData?.onlinePresence || {};
-            const api = generatedResume.resume.personalInfo || {};
-            const firstName = stored.firstName || '';
-            const lastName = stored.lastName || '';
-            const personalInfo = {
-                name: stored.name
-                    || (firstName && lastName ? `${firstName} ${lastName}` : firstName || lastName)
-                    || api.name,
-                location: stored.location || api.location,
-                phone: stored.phone || api.phone,
-                email: stored.email || api.email,
-                linkedin: stored.linkedin || onlinePresence.linkedin || api.linkedin,
-                github: stored.github || onlinePresence.github || api.github,
-                website: stored.website || onlinePresence.website || api.website,
-            };
-            const fileNameBase = parsedData?.resumeMeta?.fileName || 'Rajoju_Sai_Charan_Resume';
-            const resumeData = { ...generatedResume.resume, personalInfo, contactLocation: parsedData?.contactLocation };
-            await generateResumePdf(resumeData, fileNameBase);
-        } catch (err) {
-            console.error('Download error:', err);
-            setError('Failed to download resume PDF');
-        }
-    };
 
     const handleReset = () => {
         setImportJson('');
@@ -427,12 +398,6 @@ function ResumeGenerator({ masterResume }) {
                                     className="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-medium transition-colors flex items-center justify-center gap-2"
                                 >
                                     Download DOCX
-                                </button>
-                                <button
-                                    onClick={handleDownloadPdf}
-                                    className="flex-1 bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 font-medium transition-colors flex items-center justify-center gap-2"
-                                >
-                                    Download PDF
                                 </button>
                                 <button
                                     onClick={handleReset}

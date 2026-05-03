@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { generateCoverLetter } from '../../services/coverLetterDocxService';
-import { generateCoverLetterPdf } from '../../services/coverLetterPdfService';
 
 const PLACEHOLDER = `{
   "personalInfo": {
@@ -62,33 +61,6 @@ function CoverLetterGenerator() {
     }
   };
 
-  const handleGeneratePdf = async () => {
-    setError('');
-
-    if (!content.trim()) {
-      setError('Paste your cover letter JSON to generate.');
-      return;
-    }
-
-    let parsedData;
-    try {
-      parsedData = JSON.parse(content);
-    } catch (e) {
-      setError('Invalid JSON format. Please ensure your input is valid JSON.');
-      return;
-    }
-
-    setGenerating(true);
-    try {
-      const fileNameBase = (parsedData?.resumeMeta?.fileName || 'Rajoju_Sai_Charan_Resume').replace(/_Resume$/, '');
-      await generateCoverLetterPdf(parsedData, fileNameBase);
-    } catch (err) {
-      console.error('Error generating cover letter PDF:', err);
-      setError('Failed to generate cover letter PDF. Please try again.');
-    } finally {
-      setGenerating(false);
-    }
-  };
 
 
   return (
@@ -136,20 +108,6 @@ function CoverLetterGenerator() {
               </>
             ) : (
               'Download (.docx)'
-            )}
-          </button>
-          <button
-            onClick={handleGeneratePdf}
-            disabled={generating}
-            className="bg-red-600 text-white px-8 py-3 rounded-lg hover:bg-red-700 transition-colors font-medium text-lg disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {generating ? (
-              <>
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                Generating...
-              </>
-            ) : (
-              'Download (.pdf)'
             )}
           </button>
         </div>

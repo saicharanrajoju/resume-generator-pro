@@ -6,7 +6,6 @@ import { masterResumeService } from '../services/masterResumeService';
 import MasterResumeUpload from './Profile/MasterResumeUpload';
 import ResumeGenerator from './Generator/ResumeGenerator';
 import CoverLetterGenerator from './Generator/CoverLetterGenerator';
-import PdfSpacingTuner from './Generator/PdfSpacingTuner';
 import UsageTracker from './Generator/UsageTracker';
 import { usageService } from '../services/usageService';
 
@@ -123,12 +122,6 @@ function Dashboard() {
                                     >
                                         Cover Letter
                                     </button>
-                                    <button
-                                        onClick={() => navigate('/dashboard/pdf-tuner')}
-                                        className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
-                                    >
-                                        PDF Tuner
-                                    </button>
                                 </div>
                             )}
                         </div>
@@ -197,10 +190,6 @@ function Dashboard() {
                 <Route
                     path="cover-letter"
                     element={<CoverLetterGenerator />}
-                />
-                <Route
-                    path="pdf-tuner"
-                    element={<PdfSpacingTuner />}
                 />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
