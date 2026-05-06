@@ -153,8 +153,11 @@ function ResumeGenerator({ masterResume }) {
 
 
     const handleOpenSave = () => {
-        setSaveCompany('');
-        setSaveRole('');
+        const fileName = parsedData?.resumeMeta?.fileName || '';
+        const parts = fileName.replace(/\.docx$/i, '').split('_');
+        const remaining = parts.slice(3); // skip Rajoju_Sai_Charan
+        setSaveCompany(remaining[0] || '');
+        setSaveRole(remaining.slice(1).join(' ') || '');
         setSaveError('');
         setSaveSuccess(false);
         setShowSaveModal(true);
