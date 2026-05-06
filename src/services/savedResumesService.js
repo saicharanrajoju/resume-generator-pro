@@ -1,4 +1,4 @@
-import { db, storage } from './firebase';
+import { db } from './firebase';
 import {
     collection,
     addDoc,
@@ -9,32 +9,21 @@ import {
     orderBy,
     serverTimestamp
 } from 'firebase/firestore';
-import {
-    ref,
-    uploadBytes,
-    getDownloadURL,
-    deleteObject
-} from 'firebase/storage';
 
 const savedResumesService = {
-    async saveResume(userId, { company, role, atsScore }, blob, fileName) {
-        const storageRef = ref(storage, `savedResumes/${userId}/${Date.now()}_${fileName}.docx`);
-        const snapshot = await uploadBytes(storageRef, blob, { contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
-        const downloadUrl = await getDownloadURL(snapshot.ref);
-
+    async saveResume(userId, { company, role, atsScore, resumeData, masterParsedData, fileNameBase }) {
         const docRef = await addDoc(
             collection(db, 'savedResumes', userId, 'resumes'),
             {
                 company: company.trim(),
                 role: role.trim(),
                 atsScore: atsScore || null,
-                fileName: `${fileName}.docx`,
-                storagePath: snapshot.ref.fullPath,
-                downloadUrl,
+                fileNameBase,
+                resumeData,
+                masterParsedData,
                 savedAt: serverTimestamp()
             }
         );
-
         return docRef.id;
     },
 
@@ -47,15 +36,8 @@ const savedResumesService = {
         return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
     },
 
-    async deleteResume(userId, resumeId, storagePath) {
+    async deleteResume(userId, resumeId) {
         await deleteDoc(doc(db, 'savedResumes', userId, 'resumes', resumeId));
-        if (storagePath) {
-            try {
-                await deleteObject(ref(storage, storagePath));
-            } catch {
-                // file already gone, ignore
-            }
-        }
     }
 };
 

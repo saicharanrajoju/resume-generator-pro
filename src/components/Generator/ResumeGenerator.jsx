@@ -169,13 +169,17 @@ function ResumeGenerator({ masterResume }) {
         setSaveError('');
         try {
             const resumeData = { ...generatedResume.resume, contactLocation: parsedData?.contactLocation };
-            const blob = await docxService.generateResumeBlob(resumeData, masterResume.parsedData);
-            const fileName = `${saveCompany.trim()}_${saveRole.trim()}`.replace(/\s+/g, '_');
+            const fileNameBase = parsedData?.resumeMeta?.fileName || 'Rajoju_Sai_Charan_Resume';
             await savedResumesService.saveResume(
                 user.uid,
-                { company: saveCompany, role: saveRole, atsScore: generatedResume.atsScore },
-                blob,
-                fileName
+                {
+                    company: saveCompany,
+                    role: saveRole,
+                    atsScore: generatedResume.atsScore,
+                    resumeData,
+                    masterParsedData: masterResume.parsedData,
+                    fileNameBase
+                }
             );
             setSaveSuccess(true);
             setTimeout(() => setShowSaveModal(false), 1200);

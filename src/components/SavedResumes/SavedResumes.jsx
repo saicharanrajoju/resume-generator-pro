@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import savedResumesService from '../../services/savedResumesService';
+import docxService from '../../services/docxService';
 
 function SavedResumes() {
     const { user } = useAuth();
@@ -8,6 +9,7 @@ function SavedResumes() {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [deletingId, setDeletingId] = useState(null);
+    const [downloadingId, setDownloadingId] = useState(null);
     const [error, setError] = useState('');
 
     useEffect(() => {
@@ -27,11 +29,27 @@ function SavedResumes() {
         }
     };
 
+    const handleDownload = async (resume) => {
+        setDownloadingId(resume.id);
+        try {
+            await docxService.generateResume(
+                resume.resumeData,
+                resume.masterParsedData,
+                resume.fileNameBase || `${resume.company}_${resume.role}`.replace(/\s+/g, '_')
+            );
+        } catch (err) {
+            console.error(err);
+            setError('Failed to download. Please try again.');
+        } finally {
+            setDownloadingId(null);
+        }
+    };
+
     const handleDelete = async (resume) => {
         if (!confirm(`Delete resume for ${resume.role} at ${resume.company}?`)) return;
         setDeletingId(resume.id);
         try {
-            await savedResumesService.deleteResume(user.uid, resume.id, resume.storagePath);
+            await savedResumesService.deleteResume(user.uid, resume.id);
             setResumes(prev => prev.filter(r => r.id !== resume.id));
         } catch (err) {
             console.error(err);
@@ -114,15 +132,13 @@ function SavedResumes() {
                             <p className="text-xs text-gray-400">{formatDate(resume.savedAt)}</p>
 
                             <div className="flex gap-2 mt-auto pt-2">
-                                <a
-                                    href={resume.downloadUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    download={resume.fileName}
-                                    className="flex-1 text-center bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors"
+                                <button
+                                    onClick={() => handleDownload(resume)}
+                                    disabled={downloadingId === resume.id}
+                                    className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                                 >
-                                    Download
-                                </a>
+                                    {downloadingId === resume.id ? 'Generating...' : 'Download DOCX'}
+                                </button>
                                 <button
                                     onClick={() => handleDelete(resume)}
                                     disabled={deletingId === resume.id}
