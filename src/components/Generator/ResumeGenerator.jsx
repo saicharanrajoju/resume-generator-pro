@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { claudeService } from '../../services/claudeService';
 import docxService from '../../services/docxService';
+import savedResumesService from '../../services/savedResumesService';
 import { useAuth } from '../../hooks/useAuth';
 import { estimateResumePages } from '../../utils/resumePageEstimator';
 
@@ -23,6 +24,14 @@ function ResumeGenerator({ masterResume }) {
     // UI State
     const [showPreview, setShowPreview] = useState(true);
     const [pageAnalysis, setPageAnalysis] = useState(null);
+
+    // Save State
+    const [showSaveModal, setShowSaveModal] = useState(false);
+    const [saveCompany, setSaveCompany] = useState('');
+    const [saveRole, setSaveRole] = useState('');
+    const [saving, setSaving] = useState(false);
+    const [saveSuccess, setSaveSuccess] = useState(false);
+    const [saveError, setSaveError] = useState('');
 
     // Helper: Score color
     const getScoreColor = (score) => {
@@ -142,6 +151,41 @@ function ResumeGenerator({ masterResume }) {
         }
     };
 
+
+    const handleOpenSave = () => {
+        setSaveCompany('');
+        setSaveRole('');
+        setSaveError('');
+        setSaveSuccess(false);
+        setShowSaveModal(true);
+    };
+
+    const handleSave = async () => {
+        if (!saveCompany.trim() || !saveRole.trim()) {
+            setSaveError('Company and role are required');
+            return;
+        }
+        setSaving(true);
+        setSaveError('');
+        try {
+            const resumeData = { ...generatedResume.resume, contactLocation: parsedData?.contactLocation };
+            const blob = await docxService.generateResumeBlob(resumeData, masterResume.parsedData);
+            const fileName = `${saveCompany.trim()}_${saveRole.trim()}`.replace(/\s+/g, '_');
+            await savedResumesService.saveResume(
+                user.uid,
+                { company: saveCompany, role: saveRole, atsScore: generatedResume.atsScore },
+                blob,
+                fileName
+            );
+            setSaveSuccess(true);
+            setTimeout(() => setShowSaveModal(false), 1200);
+        } catch (err) {
+            console.error('Save error:', err);
+            setSaveError('Failed to save. Please try again.');
+        } finally {
+            setSaving(false);
+        }
+    };
 
     const handleReset = () => {
         setImportJson('');
@@ -400,6 +444,12 @@ function ResumeGenerator({ masterResume }) {
                                     Download DOCX
                                 </button>
                                 <button
+                                    onClick={handleOpenSave}
+                                    className="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-medium transition-colors flex items-center justify-center gap-2"
+                                >
+                                    Save Resume
+                                </button>
+                                <button
                                     onClick={handleReset}
                                     className="px-6 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 font-medium transition-colors"
                                 >
@@ -419,6 +469,66 @@ function ResumeGenerator({ masterResume }) {
                     )}
                 </div>
             </div>
+
+            {/* Save Modal */}
+            {showSaveModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+                        <h3 className="text-lg font-semibold mb-4">Save Resume</h3>
+
+                        {saveSuccess ? (
+                            <div className="text-center py-4">
+                                <div className="text-4xl mb-2">✅</div>
+                                <p className="text-green-700 font-medium">Resume saved successfully!</p>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="space-y-4 mb-6">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
+                                        <input
+                                            type="text"
+                                            value={saveCompany}
+                                            onChange={e => setSaveCompany(e.target.value)}
+                                            placeholder="e.g. Google"
+                                            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Role / Position</label>
+                                        <input
+                                            type="text"
+                                            value={saveRole}
+                                            onChange={e => setSaveRole(e.target.value)}
+                                            placeholder="e.g. Software Engineer"
+                                            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
+                                    </div>
+                                    {saveError && (
+                                        <p className="text-red-500 text-sm">{saveError}</p>
+                                    )}
+                                </div>
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={handleSave}
+                                        disabled={saving}
+                                        className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium transition-colors"
+                                    >
+                                        {saving ? 'Saving...' : 'Save'}
+                                    </button>
+                                    <button
+                                        onClick={() => setShowSaveModal(false)}
+                                        disabled={saving}
+                                        className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 font-medium transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

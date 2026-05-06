@@ -29,35 +29,4 @@ export const claudeService = {
         }
     },
 
-    async refineResume(currentResume, refinementRequest, jobDescription, masterResume) {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 seconds timeout
-
-        try {
-            const response = await fetch('/api/refine-resume', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    currentResume,
-                    refinementRequest,
-                    jobDescription,
-                    masterResume
-                }),
-                signal: controller.signal
-            });
-
-            clearTimeout(timeoutId);
-
-            if (!response.ok) {
-                throw new Error('Failed to refine resume');
-            }
-
-            return await response.json();
-        } catch (error) {
-            clearTimeout(timeoutId);
-            throw error;
-        }
-    }
 };

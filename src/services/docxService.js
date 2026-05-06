@@ -83,7 +83,7 @@ function formatDate(dateStr) {
 }
 
 const docxService = {
-    async generateResume(resumeData, parsedData, fileNameBase = 'Rajoju_Sai_Charan_Resume') {
+    async generateResume(resumeData, parsedData, fileNameBase = 'Rajoju_Sai_Charan_Resume', returnBlob = false) {
         const sections = [];
         const personalInfo = resumeData.personalInfo || {};
 
@@ -785,7 +785,12 @@ const docxService = {
         });
 
         const blob = await Packer.toBlob(doc);
+        if (returnBlob) return blob;
         saveAs(blob, `${fileNameBase}.docx`);
+    },
+
+    async generateResumeBlob(resumeData, parsedData) {
+        return this.generateResume(resumeData, parsedData, 'resume', true);
     }
 };
 

@@ -7,6 +7,8 @@ import MasterResumeUpload from './Profile/MasterResumeUpload';
 import ResumeGenerator from './Generator/ResumeGenerator';
 import CoverLetterGenerator from './Generator/CoverLetterGenerator';
 import UsageTracker from './Generator/UsageTracker';
+import SavedResumes from './SavedResumes/SavedResumes';
+import MasterResumeEditor from './Profile/MasterResumeEditor';
 import { usageService } from '../services/usageService';
 
 function Dashboard() {
@@ -61,6 +63,11 @@ function Dashboard() {
         } catch (error) {
             console.error('Error loading usage history:', error);
         }
+    };
+
+    const handleEditorSave = async (updatedResume) => {
+        await masterResumeService.saveMasterResume(user.uid, updatedResume);
+        await loadMasterResume();
     };
 
     const handleLogout = async () => {
@@ -121,6 +128,18 @@ function Dashboard() {
                                         className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
                                     >
                                         Cover Letter
+                                    </button>
+                                    <button
+                                        onClick={() => navigate('/dashboard/saved-resumes')}
+                                        className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
+                                    >
+                                        Saved Resumes
+                                    </button>
+                                    <button
+                                        onClick={() => navigate('/dashboard/edit-profile')}
+                                        className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
+                                    >
+                                        Edit Profile
                                     </button>
                                 </div>
                             )}
@@ -191,6 +210,23 @@ function Dashboard() {
                     path="cover-letter"
                     element={<CoverLetterGenerator />}
                 />
+                <Route
+                    path="saved-resumes"
+                    element={<SavedResumes />}
+                />
+                <Route
+                    path="edit-profile"
+                    element={
+                        masterResume ? (
+                            <MasterResumeEditor
+                                masterResume={masterResume}
+                                onSave={handleEditorSave}
+                            />
+                        ) : (
+                            <Navigate to="/dashboard/upload-resume" replace />
+                        )
+                    }
+                />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
         </div>
@@ -253,7 +289,7 @@ function DashboardHome({ masterResume, navigate, user, usageHistory = [] }) {
             </div>
 
             {/* Quick Actions & Analytics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
                 <button
                     onClick={() => navigate('/dashboard/generate')}
                     className="bg-blue-600 text-white p-6 rounded-lg hover:bg-blue-700 transition-colors text-left"
@@ -279,6 +315,15 @@ function DashboardHome({ masterResume, navigate, user, usageHistory = [] }) {
                     <div className="text-2xl mb-2">📝</div>
                     <h3 className="text-xl font-semibold mb-1">Edit Master Resume</h3>
                     <p className="text-gray-600">Update your information</p>
+                </button>
+
+                <button
+                    onClick={() => navigate('/dashboard/saved-resumes')}
+                    className="bg-purple-600 text-white p-6 rounded-lg hover:bg-purple-700 transition-colors text-left"
+                >
+                    <div className="text-2xl mb-2">💾</div>
+                    <h3 className="text-xl font-semibold mb-1">Saved Resumes</h3>
+                    <p className="text-purple-100">Browse your saved applications</p>
                 </button>
 
                 <button

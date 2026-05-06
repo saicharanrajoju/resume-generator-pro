@@ -9,7 +9,8 @@ import {
     loadMasterResume,
     updateProcessingStatus,
     saveProcessedResume,
-    updateMasterResume
+    updateMasterResume,
+    masterResumeService
 } from '../../services/masterResumeService';
 
 // Set worker path
@@ -116,6 +117,12 @@ function MasterResumeUpload({ existingResume, onComplete }) {
                     // Save processed data
                     console.log('Saving processed data...');
                     await saveProcessedResume(user.uid, understanding, structured);
+
+                    // Also write to masterResumes/{userId} so the generate flow can read it
+                    await masterResumeService.saveMasterResume(user.uid, {
+                        parsedData: structured,
+                        uploadDate: new Date().toISOString()
+                    });
 
                     console.log('✅ AI Processing complete');
                     setResumeData({ understanding, structured });
