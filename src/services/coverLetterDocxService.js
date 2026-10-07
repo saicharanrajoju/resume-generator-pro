@@ -252,7 +252,7 @@ export async function generateCoverLetter(data, fileNameBase = 'Rajoju_Sai_Chara
         properties: {
           page: {
             size: { width: 12240, height: 15840 }, // Standard US Letter
-            margin: { top: convertInchesToTwip(0.5), right: convertInchesToTwip(0.5), bottom: convertInchesToTwip(0.5), left: convertInchesToTwip(0.5) },
+            margin: { top: convertInchesToTwip(0.25), right: convertInchesToTwip(0.25), bottom: convertInchesToTwip(0.25), left: convertInchesToTwip(0.25) },
           },
         },
         children: sections,

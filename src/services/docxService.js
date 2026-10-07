@@ -766,17 +766,17 @@ const docxService = {
         }
 
         // ============================================
-        // CREATE DOCUMENT - 0.5" margins
+        // CREATE DOCUMENT - 0.25" margins
         // ============================================
         const doc = new Document({
             sections: [{
                 properties: {
                     page: {
                         margin: {
-                            top: convertInchesToTwip(0.5),
-                            bottom: convertInchesToTwip(0.5),
-                            left: convertInchesToTwip(0.5),
-                            right: convertInchesToTwip(0.5)
+                            top: convertInchesToTwip(0.25),
+                            bottom: convertInchesToTwip(0.25),
+                            left: convertInchesToTwip(0.25),
+                            right: convertInchesToTwip(0.25)
                         }
                     }
                 },
